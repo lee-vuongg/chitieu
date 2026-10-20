@@ -17,12 +17,22 @@ const base = "/";
 const baseUrl = new URL(base, self.origin);
 const manifestUrlList = self.assetsManifest.assets.map(asset => new URL(asset.url, baseUrl).href);
 
+// Trang gốc được lưu dưới khóa "/" (không dùng "index.html" vì Pages redirect /index.html sang /)
+const shellKey = new URL('/', self.origin).href;
+
 async function onInstall(event) {
+    const cache = await caches.open(cacheName);
+
     const assetsRequests = self.assetsManifest.assets
         .filter(asset => offlineAssetsInclude.some(pattern => pattern.test(asset.url)))
         .filter(asset => !offlineAssetsExclude.some(pattern => pattern.test(asset.url)))
+        .filter(asset => asset.url !== 'index.html')
         .map(asset => new Request(asset.url, { integrity: asset.hash, cache: 'no-cache' }));
-    await caches.open(cacheName).then(cache => cache.addAll(assetsRequests));
+    await cache.addAll(assetsRequests);
+
+    // Lưu trang gốc trực tiếp từ "/" để không lấy phải phản hồi redirect
+    const shell = await fetch(shellKey, { cache: 'no-cache' });
+    if (shell.ok) await cache.put(shellKey, shell);
 }
 
 async function onActivate(event) {
@@ -32,18 +42,34 @@ async function onActivate(event) {
         .map(key => caches.delete(key)));
 }
 
+// Tạo bản sao phản hồi không mang trạng thái redirect (Safari từ chối phản hồi kiểu này khi mở trang)
+async function khongRedirect(response) {
+    const blob = await response.blob();
+    return new Response(blob, {
+        status: response.status,
+        statusText: response.statusText,
+        headers: response.headers
+    });
+}
+
 async function onFetch(event) {
     let cachedResponse = null;
+    const isNavigate = event.request.mode === 'navigate'
+        && !manifestUrlList.some(url => url === event.request.url);
+
     if (event.request.method === 'GET') {
-        // Mọi đường dẫn điều hướng (vd /lich-su) trả về index.html để Blazor tự định tuyến, kể cả khi offline
-        const shouldServeIndexHtml = event.request.mode === 'navigate'
-            && !manifestUrlList.some(url => url === event.request.url);
-        const request = shouldServeIndexHtml ? 'index.html' : event.request;
         const cache = await caches.open(cacheName);
-        cachedResponse = await cache.match(request);
+        // Mọi đường dẫn điều hướng (vd /lich-su) trả về trang gốc để Blazor tự định tuyến, kể cả khi offline
+        cachedResponse = await cache.match(isNavigate ? shellKey : event.request);
     }
     try {
-        return cachedResponse || await fetch(event.request);
+        if (cachedResponse) {
+            return isNavigate ? await khongRedirect(cachedResponse) : cachedResponse;
+        }
+        const networkResponse = await fetch(event.request);
+        return isNavigate && networkResponse.redirected
+            ? await khongRedirect(networkResponse)
+            : networkResponse;
     } catch (e) {
         // Không có mạng và cũng không có trong cache (ví dụ gọi AI): trả lỗi mạng để app tự xử lý
         return new Response('', { status: 503, statusText: 'Offline' });

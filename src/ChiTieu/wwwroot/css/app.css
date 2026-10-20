@@ -396,3 +396,30 @@ select.o-nhap { appearance: none; -webkit-appearance: none; }
 }
 #blazor-error-ui .dismiss { cursor: pointer; position: absolute; right: 16px; top: 12px; font-size: 20px; }
 #blazor-error-ui .reload { margin-left: 8px; }
+/* ===== Sửa hiển thị màn hình hẹp (iPhone XS, 375pt) ===== */
+
+/* Nhãn thanh điều hướng: không xuống dòng, nhỏ hơn để vừa 5 cột (README yêu cầu dưới 15px) */
+.thanh-duoi a {
+    font-size: 13px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    letter-spacing: 0;
+}
+
+/* Số dư lớn: không xuống dòng, tự co theo màn hình */
+.so-khong-lo {
+    white-space: nowrap;
+    font-size: clamp(30px, 9vw, 44px);
+}
+
+/* Ô Thu / Chi: không xuống dòng, số tự co */
+.thu-chi > div {
+    white-space: nowrap;
+    overflow: hidden;
+    padding: 12px 10px;
+}
+
+.thu-chi .so {
+    font-size: clamp(15px, 4.6vw, 22px);
+}
