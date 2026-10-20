@@ -1,0 +1,301 @@
+@page "/muc-tieu"
+@inherits TrangCoSoDuLieu
+@inject QuanLyMucTieu MucTieuQL
+
+<PageTitle>Mục tiêu · Chi tiêu</PageTitle>
+
+<Confetti Hien="_confetti" />
+
+<div class="trang">
+    <div class="dau-trang">
+        <div>
+            <div class="phu">Tiết kiệm</div>
+            <h1>Mục tiêu</h1>
+        </div>
+        <button type="button" class="nut nut-chinh nut-nho" @onclick="MoTao">+ Tạo mới</button>
+    </div>
+
+    @if (Kho.DsMucTieu.Count == 0)
+    {
+        <EmptyState Kieu="muc-tieu" Tieu="Chưa có mục tiêu nào" Mo="Ví dụ: “Mua tivi mới”, “Du lịch Đà Lạt”. Ứng dụng sẽ tính mỗi tháng cần để dành bao nhiêu.">
+            <button type="button" class="nut nut-chinh" @onclick="MoTao">Tạo mục tiêu đầu tiên</button>
+        </EmptyState>
+    }
+    else
+    {
+        var stt = 0;
+        foreach (var m in Kho.DsMucTieu.OrderBy(x => MucTieuQL.TienDo(x).DaDat).ThenBy(x => x.Han))
+        {
+            var td = MucTieuQL.TienDo(m);
+            var mau = td.DaDat ? "var(--thu)" : td.QuaHan ? "var(--do)" : "var(--vang-dam)";
+            <section class="the the-mt lan-luot" style="--i:@(stt++)" aria-label="Mục tiêu @m.Ten">
+                <div class="mt-dau">
+                    <VongTienDo TyLe="td.TyLe" Mau="@mau" Co="96" />
+                    <div class="thong-tin">
+                        <span class="ten-mt">@m.Ten</span>
+                        <span class="so dam" style="font-size:20px">@DinhDang.Tien(td.DaNap)</span>
+                        <span class="chu-phu">trên @DinhDang.Tien(m.SoTienMucTieu)</span>
+                    </div>
+                </div>
+
+                @if (td.DaDat)
+                {
+                    <div class="canh-bao" style="background:var(--thu-nen);border-color:var(--thu)">
+                        <span class="bieu-tuong" aria-hidden="true">🎉</span>
+                        <div><b style="color:var(--thu)">Chúc mừng! Đã đạt mục tiêu</b>Bạn đã để dành đủ @DinhDang.Tien(m.SoTienMucTieu).</div>
+                    </div>
+                }
+                else
+                {
+                    <div style="display:grid;gap:8px">
+                        <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap">
+                            <span class="chu-phu">Còn thiếu</span><b class="so">@DinhDang.Tien(td.ConThieu)</b>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap">
+                            <span class="chu-phu">Hạn</span>
+                            <b>@DinhDang.Ngay(m.Han)@(td.QuaHan ? " · đã quá hạn" : $" · còn {td.SoThangConLai} tháng")</b>
+                        </div>
+                        <div class="xem-truoc">
+                            <span class="chu-phu">Mỗi tháng cần để dành</span>
+                            <span class="so-tien so">@DinhDang.Tien(td.CanMoiThang)</span>
+                        </div>
+                    </div>
+                }
+
+                <div style="display:flex;gap:8px;flex-wrap:wrap">
+                    <button type="button" class="nut nut-thu" @onclick="@(() => MoNap(m))">+ Nạp thêm</button>
+                    <button type="button" class="nut nut-nho" @onclick="@(() => MoSua(m))">Sửa</button>
+                    <button type="button" class="nut nut-nho nut-xoa" @onclick="@(() => _xoaMt = m)">Xóa</button>
+                </div>
+
+                @if (m.LichSuNap.Count > 0)
+                {
+                    <details>
+                        <summary style="min-height:48px;display:flex;align-items:center;font-weight:700;cursor:pointer">Lịch sử nạp (@m.LichSuNap.Count)</summary>
+                        @foreach (var n in m.LichSuNap.OrderByDescending(x => x.Ngay).ThenByDescending(x => x.Id).Take(30))
+                        {
+                            <div class="hang-nap">
+                                <span>@DinhDang.Ngay(n.Ngay)</span>
+                                <b class="so chu-thu">+@DinhDang.Tien(n.SoTien)</b>
+                            </div>
+                        }
+                    </details>
+                }
+            </section>
+        }
+    }
+</div>
+
+@* ===== Form tạo / sửa ===== *@
+@if (_dangForm)
+{
+    <div class="sheet-nen" @onclick="DongForm"></div>
+    <div class="sheet" role="dialog" aria-modal="true" aria-label="@(_sua == null ? "Tạo mục tiêu" : "Sửa mục tiêu")">
+        <div class="sheet-tay"></div>
+        <div class="sheet-dau">
+            <h2>@(_sua == null ? "Tạo mục tiêu" : "Sửa mục tiêu")</h2>
+            <button type="button" class="nut nut-tron nut-trong" aria-label="Đóng" @onclick="DongForm"><Bieu Ten="dong" /></button>
+        </div>
+        <div class="sheet-than">
+            <div class="truong">
+                <label for="mt-ten">Tên mục tiêu</label>
+                <input id="mt-ten" class="o-nhap" type="text" autocomplete="off" placeholder="Ví dụ: Mua tivi mới" @bind="_ten" @bind:event="oninput" />
+            </div>
+            <div class="truong">
+                <label for="mt-tien">Số tiền cần có (đồng)</label>
+                <input id="mt-tien" class="o-nhap o-so" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="0"
+                       @bind="NhapSoTien" @bind:event="oninput" />
+                <span class="tro-giup so">= @DinhDang.Tien(_soTien)</span>
+            </div>
+            <div class="truong">
+                <label for="mt-han">Muốn đạt trước ngày</label>
+                <input id="mt-han" type="date" class="o-nhap" value="@_han.ToString("yyyy-MM-dd")" @onchange="DoiHan" />
+            </div>
+            @if (!string.IsNullOrEmpty(_loi))
+            {
+                <p class="loi" role="alert">@_loi</p>
+            }
+        </div>
+        <div class="sheet-chan">
+            <button type="button" class="nut nut-chinh nut-tran" @onclick="LuuForm">Lưu mục tiêu</button>
+        </div>
+    </div>
+}
+
+@* ===== Nạp thêm ===== *@
+@if (_nap != null)
+{
+    <div class="sheet-nen" @onclick="DongNap"></div>
+    <div class="sheet" role="dialog" aria-modal="true" aria-label="Nạp thêm">
+        <div class="sheet-tay"></div>
+        <div class="sheet-dau">
+            <h2>Nạp thêm: @_nap.Ten</h2>
+            <button type="button" class="nut nut-tron nut-trong" aria-label="Đóng" @onclick="DongNap"><Bieu Ten="dong" /></button>
+        </div>
+        <div class="sheet-than">
+            <div class="truong">
+                <label for="nap-tien">Số tiền nạp (đồng)</label>
+                <input id="nap-tien" class="o-nhap o-so" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="0"
+                       @bind="NhapSoNap" @bind:event="oninput" />
+                <span class="tro-giup so">= @DinhDang.Tien(_soNap)</span>
+                <div class="o-chon">
+                    @foreach (var t in new long[] { 100_000, 500_000, 1_000_000, 5_000_000 })
+                    {
+                        var them = t;
+                        <button type="button" class="chip" @onclick="@(() => CongNap(them))">+@DinhDang.TienRutGon(t)</button>
+                    }
+                    <button type="button" class="chip" @onclick="@(() => CongNap(-_soNap))">Xóa số</button>
+                </div>
+            </div>
+            @if (!string.IsNullOrEmpty(_loi))
+            {
+                <p class="loi" role="alert">@_loi</p>
+            }
+        </div>
+        <div class="sheet-chan">
+            <button type="button" class="nut nut-thu nut-tran" disabled="@(_soNap <= 0)" @onclick="LuuNap">Nạp @DinhDang.Tien(_soNap)</button>
+        </div>
+    </div>
+}
+
+@* ===== Xác nhận xóa ===== *@
+@if (_xoaMt != null)
+{
+    <div class="sheet-nen" @onclick="@(() => _xoaMt = null)"></div>
+    <div class="sheet" role="alertdialog" aria-modal="true" aria-label="Xác nhận xóa">
+        <div class="sheet-tay"></div>
+        <div class="sheet-than" style="padding-top:18px">
+            <h2>Xóa mục tiêu “@_xoaMt.Ten”?</h2>
+            <p class="chu-phu">Toàn bộ lịch sử nạp của mục tiêu này cũng sẽ mất. Không thể khôi phục.</p>
+        </div>
+        <div class="sheet-chan">
+            <button type="button" class="nut nut-tran" @onclick="@(() => _xoaMt = null)">Giữ lại</button>
+            <button type="button" class="nut nut-xoa nut-tran" @onclick="XacNhanXoa">Xóa</button>
+        </div>
+    </div>
+}
+
+@code {
+    private bool _confetti;
+
+    // Form tạo/sửa
+    private bool _dangForm;
+    private MucTieu? _sua;
+    private string _ten = "";
+    private long _soTien;
+    private string _soTienText = "";
+    private DateOnly _han;
+    private string? _loi;
+
+    // Nạp
+    private MucTieu? _nap;
+    private long _soNap;
+    private string _napText = "";
+
+    private MucTieu? _xoaMt;
+
+    private string NhapSoTien
+    {
+        get => _soTienText;
+        set { _soTienText = value ?? ""; _soTien = ParseSo(_soTienText); _loi = null; }
+    }
+
+    private string NhapSoNap
+    {
+        get => _napText;
+        set { _napText = value ?? ""; _soNap = ParseSo(_napText); _loi = null; }
+    }
+
+    private static long ParseSo(string? s)
+    {
+        if (string.IsNullOrEmpty(s)) return 0;
+        var so = new string(s.Where(char.IsDigit).ToArray());
+        return long.TryParse(so, out var v) && v < 1_000_000_000_000 ? v : 0;
+    }
+
+    private void MoTao()
+    {
+        _sua = null; _ten = ""; _soTien = 0; _soTienText = "";
+        _han = Dong.HomNay.AddMonths(6); _loi = null; _dangForm = true;
+    }
+
+    private void MoSua(MucTieu m)
+    {
+        _sua = m; _ten = m.Ten; _soTien = m.SoTienMucTieu; _soTienText = m.SoTienMucTieu.ToString();
+        _han = m.Han; _loi = null; _dangForm = true;
+    }
+
+    private void DongForm() => _dangForm = false;
+
+    private void DoiHan(ChangeEventArgs e) { if (DateOnly.TryParse(e.Value?.ToString(), out var d)) _han = d; }
+
+    private async Task LuuForm()
+    {
+        _loi = null;
+        var m = _sua ?? new MucTieu();
+        m.Ten = _ten; m.SoTienMucTieu = _soTien; m.Han = _han;
+        try
+        {
+            await MucTieuQL.LuuAsync(m);
+            await Rung.RungAsync(12);
+            Bao.Xong(_sua == null ? "Đã tạo mục tiêu" : "Đã lưu mục tiêu");
+            _dangForm = false;
+        }
+        catch (ArgumentException e) { _loi = e.Message; }
+        catch (DuLieuException e) { _loi = e.Message; }
+    }
+
+    private void MoNap(MucTieu m)
+    {
+        _nap = m; _soNap = 0; _napText = ""; _loi = null;
+    }
+
+    private void DongNap() => _nap = null;
+
+    private void CongNap(long them)
+    {
+        _soNap = Math.Max(0, _soNap + them);
+        _napText = _soNap == 0 ? "" : _soNap.ToString();
+    }
+
+    private async Task LuuNap()
+    {
+        if (_nap == null || _soNap <= 0) return;
+        try
+        {
+            var vuaDat = await MucTieuQL.NapThemAsync(_nap, _soNap);
+            var ten = _nap.Ten;
+            _nap = null;
+            await Rung.RungAsync(vuaDat ? 60 : 12);
+            if (vuaDat)
+            {
+                Bao.Xong($"🎉 Chúc mừng! Bạn đã đạt mục tiêu “{ten}”");
+                await ChucMung();
+            }
+            else Bao.Xong("Đã nạp thêm");
+        }
+        catch (ArgumentException e) { _loi = e.Message; }
+        catch (DuLieuException e) { _loi = e.Message; }
+    }
+
+    private async Task ChucMung()
+    {
+        _confetti = true;
+        StateHasChanged();
+        await Task.Delay(5000);
+        _confetti = false;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task XacNhanXoa()
+    {
+        var m = _xoaMt;
+        _xoaMt = null;
+        if (m == null) return;
+        await AnToanAsync(async () =>
+        {
+            await MucTieuQL.XoaAsync(m.Id);
+            Bao.Thong($"Đã xóa mục tiêu “{m.Ten}”");
+        });
+    }
+}

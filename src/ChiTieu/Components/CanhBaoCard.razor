@@ -1,0 +1,13 @@
+<div class="canh-bao @(CB.Muc == MucCanhBao.Do ? "do" : "vang")" role="alert">
+    <span class="bieu-tuong" aria-hidden="true">@Icon</span>
+    <div>
+        <b>@CB.TieuDe</b>
+        @CB.NoiDung
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public CanhBaoNganSach CB { get; set; } = default!;
+
+    private string Icon => CB.Muc == MucCanhBao.Do ? "🚨" : CB.LaDuBao ? "📈" : "⚠️";
+}

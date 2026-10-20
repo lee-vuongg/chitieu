@@ -1,0 +1,15 @@
+@using System.Globalization
+
+<div class="thanh-ns @LopMau" role="progressbar" aria-valuemin="0" aria-valuemax="100"
+     aria-valuenow="@((int)Math.Round(Math.Min(TyLe, 1) * 100))" aria-label="Đã dùng @DinhDang.PhanTram(TyLe)">
+    <i style="--w:@((Math.Min(TyLe, 1) * 100).ToString("0.#", CultureInfo.InvariantCulture))%;--i:@Thu"></i>
+</div>
+
+@code {
+    [Parameter] public double TyLe { get; set; }
+    [Parameter] public MucCanhBao Muc { get; set; }
+    /// <summary>Thứ tự dòng, dùng để các thanh chạy lần lượt.</summary>
+    [Parameter] public int Thu { get; set; }
+
+    private string LopMau => Muc switch { MucCanhBao.Do => "do", MucCanhBao.Vang => "vang", _ => "" };
+}

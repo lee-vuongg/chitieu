@@ -1,0 +1,34 @@
+@inject IJSRuntime JS
+@inject CaiDatService CaiDat
+
+@* Hướng dẫn "Thêm vào Màn hình chính": chỉ hiện một lần, và chỉ khi đang mở trong Safari trên iPhone/iPad (chưa cài). *@
+@if (_hien)
+{
+    <div class="huong-dan the lan-luot" role="dialog" aria-label="Hướng dẫn thêm vào màn hình chính">
+        <h3>📲 Cài ứng dụng lên iPhone</h3>
+        <ol style="margin:10px 0 14px; padding-left:22px; display:flex; flex-direction:column; gap:6px">
+            <li>Bấm nút <b>Chia sẻ</b> (hình ô vuông có mũi tên lên) ở thanh dưới của Safari.</li>
+            <li>Kéo xuống và chọn <b>“Thêm vào Màn hình chính”</b>.</li>
+            <li>Bấm <b>Thêm</b>. Từ giờ mở từ biểu tượng trên màn hình, không cần mạng.</li>
+        </ol>
+        <button class="nut nut-chinh nut-tran" @onclick="DaHieu">Đã hiểu</button>
+    </div>
+}
+
+@code {
+    private bool _hien;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender || CaiDat.Hien.DaHienHuongDanIos) return;
+        try { _hien = await JS.InvokeAsync<bool>("chitieuUtil.canHuongDanIos"); } catch { _hien = false; }
+        if (_hien) StateHasChanged();
+    }
+
+    private async Task DaHieu()
+    {
+        _hien = false;
+        CaiDat.Hien.DaHienHuongDanIos = true;
+        try { await CaiDat.LuuAsync(); } catch (DuLieuException) { /* lần sau hiện lại cũng không sao */ }
+    }
+}

@@ -1,0 +1,405 @@
+@page "/cai-dat"
+@inherits TrangCoSoDuLieu
+@inject CaiDatService CaiDat
+@inject BackupService Backup
+@inject DbService Db
+@inject IJSRuntime Js
+
+<PageTitle>Cài đặt · Chi tiêu</PageTitle>
+
+<div class="trang">
+    <div class="dau-trang">
+        <h1>Cài đặt</h1>
+    </div>
+
+    @* ===== Giao diện ===== *@
+    <section class="the lan-luot" style="--i:0">
+        <div class="the-tieu-de"><h2>Giao diện</h2></div>
+        <div class="nhom-loai" style="grid-template-columns:repeat(3,1fr)" role="radiogroup" aria-label="Chế độ sáng tối">
+            <button type="button" role="radio" aria-checked="@(CaiDat.Hien.ChuDe == ChuDe.HeThong ? "true" : "false")" class="@(CaiDat.Hien.ChuDe == ChuDe.HeThong ? "chon tab" : "")" @onclick="@(() => DoiChuDe(ChuDe.HeThong))">Theo máy</button>
+            <button type="button" role="radio" aria-checked="@(CaiDat.Hien.ChuDe == ChuDe.Sang ? "true" : "false")" class="@(CaiDat.Hien.ChuDe == ChuDe.Sang ? "chon tab" : "")" @onclick="@(() => DoiChuDe(ChuDe.Sang))">☀️ Sáng</button>
+            <button type="button" role="radio" aria-checked="@(CaiDat.Hien.ChuDe == ChuDe.Toi ? "true" : "false")" class="@(CaiDat.Hien.ChuDe == ChuDe.Toi ? "chon tab" : "")" @onclick="@(() => DoiChuDe(ChuDe.Toi))">🌙 Tối</button>
+        </div>
+    </section>
+
+    @* ===== Sao lưu ===== *@
+    <section class="the lan-luot" style="--i:1">
+        <div class="the-tieu-de"><h2>Sao lưu dữ liệu</h2></div>
+        <p class="chu-phu" style="margin-bottom:12px">
+            Dữ liệu chỉ nằm trong điện thoại này. Hãy sao lưu định kỳ để không mất khi đổi máy hoặc xóa dữ liệu Safari.
+        </p>
+        @if (Backup.SoNgayTuLanCuoi == null)
+        {
+            <p class="loi" style="margin-bottom:12px">Bạn chưa sao lưu lần nào.</p>
+        }
+        else
+        {
+            <p class="@(Backup.CanNhac ? "loi" : "chu-phu")" style="margin-bottom:12px">
+                Sao lưu lần cuối: @Backup.SoNgayTuLanCuoi ngày trước@(Backup.CanNhac ? " — đã đến lúc sao lưu lại." : ".")
+            </p>
+        }
+
+        <div style="display:flex;flex-direction:column;gap:10px">
+            <button type="button" class="nut nut-chinh nut-tran" disabled="@_dangXuat" @onclick="XuatBackup">
+                <Bieu Ten="tai-len" Class="nho" /> @(_dangXuat ? "Đang chuẩn bị…" : "Sao lưu ra file")
+            </button>
+            <label class="nut nut-tran" style="cursor:pointer" for="chon-file-backup">
+                <Bieu Ten="tai-xuong" Class="nho" /> Khôi phục từ file
+                <InputFile id="chon-file-backup" OnChange="ChonFile" accept=".json,application/json" style="position:absolute;inset:0;opacity:0;width:100%;height:100%;cursor:pointer" />
+            </label>
+        </div>
+
+        @if (!string.IsNullOrEmpty(_loiBackup))
+        {
+            <p class="loi" style="margin-top:12px" role="alert">@_loiBackup</p>
+        }
+
+        @if (_file != null)
+        {
+            <div class="xem-truoc lan-luot" style="margin-top:14px" role="group" aria-label="Xác nhận khôi phục">
+                <b>File sao lưu hợp lệ</b>
+                <span>@_file.GiaoDich.Count giao dịch · @_file.MucTieu.Count mục tiêu · @_file.NganSach.Count ngân sách</span>
+                <span class="chu-phu">Xuất lúc @DinhDang.Ngay(DateOnly.FromDateTime(_file.XuatLuc))</span>
+                <div style="display:grid;gap:8px;margin-top:6px">
+                    <button type="button" class="nut nut-chinh" disabled="@_dangNhap" @onclick="@(() => Nhap(CheDoNhap.Gop))">Gộp vào dữ liệu hiện có</button>
+                    <button type="button" class="nut nut-xoa" disabled="@_dangNhap" @onclick="@(() => _xacNhanGhiDe = true)">Ghi đè (thay hết)</button>
+                    <button type="button" class="nut" @onclick="HuyNhap">Hủy</button>
+                </div>
+            </div>
+        }
+    </section>
+
+    @* ===== AI ===== *@
+    <section class="the lan-luot" style="--i:2">
+        <div class="the-tieu-de"><h2>Trợ lý AI (tùy chọn)</h2></div>
+        <p class="chu-phu" style="margin-bottom:12px">
+            Không bắt buộc. Khi bật, câu nhập khó hiểu sẽ được gửi thẳng từ máy bạn tới Google Gemini để phân tích.
+            Phần hỏi đáp và tổng kết chỉ gửi số liệu tổng hợp, không gửi ghi chú.
+        </p>
+        <div style="display:flex;flex-direction:column;gap:12px">
+            <div class="truong">
+                <label for="ai-ma">Gemini API key</label>
+                <input id="ai-ma" class="o-nhap" type="password" autocapitalize="none" autocorrect="off" spellcheck="false" autocomplete="off"
+                       placeholder="Dán key lấy từ aistudio.google.com/apikey" @bind="_aiMa" @bind:event="oninput" />
+                <span class="tro-giup">Key chỉ lưu trong máy này và đi kèm file sao lưu, hãy cất file sao lưu cẩn thận.</span>
+            </div>
+            @if (!string.IsNullOrEmpty(_loiAi))
+            {
+                <p class="loi" role="alert">@_loiAi</p>
+            }
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+                <button type="button" class="nut nut-chinh" @onclick="LuuAi">Lưu</button>
+                @if (!string.IsNullOrWhiteSpace(CaiDat.Hien.AiMa))
+                {
+                    <button type="button" class="nut" @onclick="TatAi">Tắt AI</button>
+                }
+            </div>
+            <span class="tro-giup">Hiện tại: @(AiDangBat ? "✅ đã cài" : "chưa cài (ứng dụng vẫn dùng bình thường)")</span>
+        </div>
+    </section>
+
+    @* ===== Từ khóa đã học ===== *@
+    <section class="the lan-luot" style="--i:3">
+        <div class="the-tieu-de"><h2>Từ khóa đã học</h2></div>
+        <p class="chu-phu" style="margin-bottom:12px">Khi bạn sửa danh mục của một khoản, ứng dụng nhớ để lần sau tự chọn đúng.</p>
+        @if (Kho.DsTuKhoaHoc.Count == 0)
+        {
+            <p class="tro-giup">Chưa có từ khóa nào.</p>
+        }
+        else
+        {
+            @foreach (var t in Kho.DsTuKhoaHoc.OrderBy(x => x.Id))
+            {
+                var khoa = t.Id;
+                <div class="hang-nap" style="align-items:center">
+                    <span><b>“@khoa”</b> → @Kho.TenDanhMuc(t.DanhMucId)</span>
+                    <button type="button" class="nut nut-nho nut-xoa" aria-label="Quên từ khóa @khoa" @onclick="@(() => QuenTuKhoa(khoa))">Quên</button>
+                </div>
+            }
+        }
+    </section>
+
+    @* ===== Danh mục & từ khóa ===== *@
+    <section class="the lan-luot" style="--i:4">
+        <div class="the-tieu-de"><h2>Danh mục & từ khóa</h2></div>
+        <p class="chu-phu" style="margin-bottom:12px">Chạm vào một danh mục để sửa từ khóa dùng để đoán khi gõ nhanh. Ngăn cách bằng dấu phẩy.</p>
+        <div style="display:flex;flex-direction:column;gap:8px">
+            @foreach (var dm in Kho.DsDanhMuc.OrderBy(d => d.Loai == LoaiGiaoDich.Thu).ThenBy(d => d.Ten))
+            {
+                var id = dm.Id;
+                <button type="button" class="hang-gd" style="border:1px solid var(--vien);border-radius:16px;min-height:60px" @onclick="@(() => MoDanhMuc(id))">
+                    <span class="bieu-tuong">@dm.Icon</span>
+                    <span class="noi-dung-gd">
+                        <span class="ghi-chu">@dm.Ten</span>
+                        <span class="danh-muc">@(dm.Loai == LoaiGiaoDich.Thu ? "Thu" : "Chi") · @dm.TuKhoa.Count từ khóa</span>
+                    </span>
+                    <span class="chu-phu" aria-hidden="true">›</span>
+                </button>
+            }
+        </div>
+        <div style="display:grid;gap:8px;margin-top:14px">
+            <button type="button" class="nut" @onclick="@(() => _themDm = true)">+ Thêm danh mục mới</button>
+            <button type="button" class="nut nut-nho" @onclick="DatLaiTuKhoa">Đặt lại từ khóa mặc định</button>
+        </div>
+    </section>
+
+    <section class="the lan-luot" style="--i:5">
+        <div class="the-tieu-de"><h2>Về ứng dụng</h2></div>
+        <p class="chu-phu">Sổ chi tiêu cá nhân · dữ liệu lưu ngay trên máy, dùng được khi không có mạng.</p>
+        @if (!string.IsNullOrEmpty(_dungLuong))
+        {
+            <p class="tro-giup" style="margin-top:8px">Dung lượng đang dùng: @_dungLuong</p>
+        }
+    </section>
+</div>
+
+@* ===== Sửa từ khóa của một danh mục ===== *@
+@if (_suaDm != null)
+{
+    <div class="sheet-nen" @onclick="DongSuaDm"></div>
+    <div class="sheet" role="dialog" aria-modal="true" aria-label="Sửa từ khóa">
+        <div class="sheet-tay"></div>
+        <div class="sheet-dau">
+            <h2>@_suaDm.Icon @_suaDm.Ten</h2>
+            <button type="button" class="nut nut-tron nut-trong" aria-label="Đóng" @onclick="DongSuaDm"><Bieu Ten="dong" /></button>
+        </div>
+        <div class="sheet-than">
+            <div class="truong">
+                <label for="tu-khoa">Từ khóa (ngăn cách bằng dấu phẩy)</label>
+                <textarea id="tu-khoa" class="o-nhap" style="min-height:160px" autocapitalize="none" spellcheck="false" @bind="_tuKhoaText" @bind:event="oninput"></textarea>
+                <span class="tro-giup">Ví dụ: phở, bún bò, cà phê. Từ khóa càng dài và cụ thể thì càng được ưu tiên.</span>
+            </div>
+        </div>
+        <div class="sheet-chan">
+            <button type="button" class="nut nut-chinh nut-tran" @onclick="LuuTuKhoa">Lưu từ khóa</button>
+        </div>
+    </div>
+}
+
+@* ===== Thêm danh mục ===== *@
+@if (_themDm)
+{
+    <div class="sheet-nen" @onclick="@(() => _themDm = false)"></div>
+    <div class="sheet" role="dialog" aria-modal="true" aria-label="Thêm danh mục">
+        <div class="sheet-tay"></div>
+        <div class="sheet-dau">
+            <h2>Thêm danh mục</h2>
+            <button type="button" class="nut nut-tron nut-trong" aria-label="Đóng" @onclick="@(() => _themDm = false)"><Bieu Ten="dong" /></button>
+        </div>
+        <div class="sheet-than">
+            <div class="nhom-loai">
+                <button type="button" class="@(_dmLoai == LoaiGiaoDich.Chi ? "chon chi" : "")" @onclick="@(() => _dmLoai = LoaiGiaoDich.Chi)">Chi</button>
+                <button type="button" class="@(_dmLoai == LoaiGiaoDich.Thu ? "chon thu" : "")" @onclick="@(() => _dmLoai = LoaiGiaoDich.Thu)">Thu</button>
+            </div>
+            <div class="truong">
+                <label for="dm-ten">Tên danh mục</label>
+                <input id="dm-ten" class="o-nhap" type="text" autocomplete="off" placeholder="Ví dụ: Thú cưng" @bind="_dmTen" @bind:event="oninput" />
+            </div>
+            <div class="truong">
+                <label for="dm-icon">Biểu tượng (một emoji)</label>
+                <input id="dm-icon" class="o-nhap" type="text" autocomplete="off" maxlength="4" placeholder="🐶" @bind="_dmIcon" @bind:event="oninput" />
+            </div>
+            @if (!string.IsNullOrEmpty(_loiDm))
+            {
+                <p class="loi" role="alert">@_loiDm</p>
+            }
+        </div>
+        <div class="sheet-chan">
+            <button type="button" class="nut nut-chinh nut-tran" @onclick="LuuDanhMuc">Thêm</button>
+        </div>
+    </div>
+}
+
+@* ===== Xác nhận ghi đè ===== *@
+@if (_xacNhanGhiDe)
+{
+    <div class="sheet-nen" @onclick="@(() => _xacNhanGhiDe = false)"></div>
+    <div class="sheet" role="alertdialog" aria-modal="true" aria-label="Xác nhận ghi đè">
+        <div class="sheet-tay"></div>
+        <div class="sheet-than" style="padding-top:18px">
+            <h2>Thay toàn bộ dữ liệu hiện tại?</h2>
+            <p class="chu-phu">Mọi giao dịch, ngân sách và mục tiêu đang có sẽ bị thay bằng nội dung trong file. Hãy sao lưu trước nếu chưa chắc chắn.</p>
+        </div>
+        <div class="sheet-chan">
+            <button type="button" class="nut nut-tran" @onclick="@(() => _xacNhanGhiDe = false)">Quay lại</button>
+            <button type="button" class="nut nut-xoa nut-tran" @onclick="@(() => Nhap(CheDoNhap.GhiDe))">Ghi đè</button>
+        </div>
+    </div>
+}
+
+@code {
+    private bool _dangXuat, _dangNhap, _xacNhanGhiDe;
+    private string? _loiBackup, _loiAi, _loiDm, _dungLuong;
+    private BackupData? _file;
+
+    private string _aiMa = "";
+
+    private DanhMuc? _suaDm;
+    private string _tuKhoaText = "";
+
+    private bool _themDm;
+    private LoaiGiaoDich _dmLoai = LoaiGiaoDich.Chi;
+    private string _dmTen = "", _dmIcon = "";
+
+    private bool AiDangBat => string.IsNullOrWhiteSpace(CaiDat.Hien.AiUrl) && !string.IsNullOrWhiteSpace(CaiDat.Hien.AiMa);
+
+    protected override void KhoiTao()
+    {
+        // Cấu hình cũ dùng Worker (có AiUrl) không còn hợp lệ: để trống để nhập key Gemini mới.
+        _aiMa = string.IsNullOrWhiteSpace(CaiDat.Hien.AiUrl) ? CaiDat.Hien.AiMa : "";
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        try
+        {
+            var json = await Js.InvokeAsync<string>("chitieuDb.uocLuong");
+            if (!string.IsNullOrEmpty(json))
+            {
+                using var doc = System.Text.Json.JsonDocument.Parse(json);
+                var dung = doc.RootElement.GetProperty("dung").GetInt64();
+                _dungLuong = dung >= 1_048_576 ? $"{dung / 1_048_576.0:0.#} MB" : $"{Math.Max(1, dung / 1024)} KB";
+                StateHasChanged();
+            }
+        }
+        catch { /* không hỗ trợ thì bỏ qua */ }
+    }
+
+    // ---------- Giao diện ----------
+    private Task DoiChuDe(ChuDe c) => AnToanAsync(() => CaiDat.DatChuDeAsync(c));
+
+    // ---------- Sao lưu ----------
+    private async Task XuatBackup()
+    {
+        _loiBackup = null; _dangXuat = true;
+        try
+        {
+            var kq = await Backup.XuatAsync();
+            if (kq == KetQuaXuat.DaTaiXuong) Bao.Xong("Đã tải file sao lưu về máy. Hãy cất file ở nơi an toàn (iCloud Drive, email cho chính mình…).");
+            else if (kq == KetQuaXuat.DaChiaSe) Bao.Xong("Đã sao lưu");
+        }
+        catch (DuLieuException e) { _loiBackup = e.Message; }
+        catch (Exception) { _loiBackup = "Không tạo được file sao lưu. Hãy thử lại."; }
+        finally { _dangXuat = false; }
+    }
+
+    private async Task ChonFile(InputFileChangeEventArgs e)
+    {
+        _loiBackup = null; _file = null; _xacNhanGhiDe = false;
+        var f = e.File;
+        if (f == null) return;
+        try
+        {
+            if (f.Size > 20 * 1024 * 1024) { _loiBackup = "File quá lớn, có vẻ không phải file sao lưu của ứng dụng."; return; }
+            using var stream = f.OpenReadStream(20 * 1024 * 1024);
+            using var reader = new StreamReader(stream);
+            var json = await reader.ReadToEndAsync();
+            _file = Backup.Doc(json);
+        }
+        catch (InvalidDataException ex) { _loiBackup = ex.Message; }
+        catch (Exception) { _loiBackup = "Không đọc được file này. Hãy chọn đúng file sao lưu (.json)."; }
+    }
+
+    private void HuyNhap() { _file = null; _xacNhanGhiDe = false; }
+
+    private async Task Nhap(CheDoNhap che)
+    {
+        if (_file == null || _dangNhap) return;
+        _dangNhap = true; _xacNhanGhiDe = false;
+        try
+        {
+            await Backup.NhapAsync(_file, che);
+            Bao.Xong(che == CheDoNhap.Gop ? "Đã gộp dữ liệu từ file" : "Đã khôi phục dữ liệu từ file");
+            _file = null;
+        }
+        catch (DuLieuException e) { _loiBackup = e.Message; }
+        finally { _dangNhap = false; }
+    }
+
+    // ---------- AI ----------
+    private async Task LuuAi()
+    {
+        _loiAi = null;
+        var ma = (_aiMa ?? "").Trim();
+        if (ma.Length == 0)
+        {
+            await TatAi();
+            return;
+        }
+        if (ma.Length < 20 || ma.Any(char.IsWhiteSpace)) { _loiAi = "API key trông chưa đúng. Hãy dán lại toàn bộ key (không có khoảng trắng)."; return; }
+        await AnToanAsync(async () =>
+        {
+            CaiDat.Hien.AiUrl = "";
+            CaiDat.Hien.AiMa = ma;
+            await CaiDat.LuuAsync();
+            Bao.Xong("Đã lưu cài đặt AI");
+        });
+    }
+
+    private async Task TatAi()
+    {
+        await AnToanAsync(async () =>
+        {
+            CaiDat.Hien.AiUrl = ""; CaiDat.Hien.AiMa = "";
+            _aiMa = "";
+            await CaiDat.LuuAsync();
+            Bao.Thong("Đã tắt AI");
+        });
+    }
+
+    // ---------- Từ khóa ----------
+    private async Task QuenTuKhoa(string khoa)
+    {
+        await AnToanAsync(async () =>
+        {
+            await Db.XoaAsync(DbService.TuKhoaHoc, khoa);
+            Kho.DsTuKhoaHoc.RemoveAll(t => t.Id == khoa);
+            Kho.BaoThayDoi();
+        });
+    }
+
+    private void MoDanhMuc(string id)
+    {
+        _suaDm = Kho.TimDanhMuc(id);
+        _tuKhoaText = _suaDm == null ? "" : string.Join(", ", _suaDm.TuKhoa);
+    }
+
+    private void DongSuaDm() => _suaDm = null;
+
+    private async Task LuuTuKhoa()
+    {
+        var dm = _suaDm;
+        if (dm == null) return;
+        dm.TuKhoa = _tuKhoaText.Split(new[] { ',', ';', '\n' }, StringSplitOptions.RemoveEmptyEntries)
+            .Select(s => s.Trim()).Where(s => s.Length > 0).Distinct().ToList();
+        await AnToanAsync(async () =>
+        {
+            await CaiDat.LuuDanhMucAsync(dm);
+            Bao.Xong("Đã lưu từ khóa");
+            _suaDm = null;
+        });
+    }
+
+    private async Task DatLaiTuKhoa()
+    {
+        await AnToanAsync(async () =>
+        {
+            await CaiDat.DatLaiTuKhoaMacDinhAsync();
+            Bao.Xong("Đã đặt lại từ khóa mặc định");
+        });
+    }
+
+    private async Task LuuDanhMuc()
+    {
+        _loiDm = null;
+        try
+        {
+            await CaiDat.ThemDanhMucAsync(_dmTen, _dmLoai, _dmIcon);
+            Bao.Xong("Đã thêm danh mục");
+            _themDm = false; _dmTen = ""; _dmIcon = "";
+        }
+        catch (ArgumentException e) { _loiDm = e.Message; }
+        catch (DuLieuException e) { _loiDm = e.Message; }
+    }
+}

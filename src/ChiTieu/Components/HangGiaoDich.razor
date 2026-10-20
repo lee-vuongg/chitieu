@@ -1,0 +1,30 @@
+@inject KhoDuLieu Kho
+
+@* Một dòng giao dịch. Chạm để sửa; vuốt sang trái (cuộn ngang) để hiện nút Xóa. *@
+@{
+    var dm = Kho.TimDanhMuc(G.DanhMucId);
+    var laThu = G.Loai == LoaiGiaoDich.Thu;
+}
+<div class="hang-vuot lan-luot @(DangXoa ? "dang-xoa" : "")" style="--i:@Stt">
+    <button type="button" class="hang-gd" @onclick="() => OnSua.InvokeAsync(G)"
+            aria-label="@(laThu ? "Thu" : "Chi") @DinhDang.Tien(G.SoTien), @(string.IsNullOrWhiteSpace(G.GhiChu) ? Kho.TenDanhMuc(G.DanhMucId) : G.GhiChu). Chạm để sửa.">
+        <span class="bieu-tuong" aria-hidden="true">@(dm?.Icon ?? "🏷️")</span>
+        <span class="noi-dung-gd">
+            <span class="ghi-chu">@(string.IsNullOrWhiteSpace(G.GhiChu) ? Kho.TenDanhMuc(G.DanhMucId) : G.GhiChu)</span>
+            <span class="danh-muc">@Kho.TenDanhMuc(G.DanhMucId)@(MoNgay ? " · " + DinhDang.Ngay(G.Ngay) : "")</span>
+        </span>
+        <span class="tien @(laThu ? "chu-thu" : "chu-chi")">@(laThu ? "+" : "-")@DinhDang.Tien(G.SoTien)</span>
+    </button>
+    <button type="button" class="nut-vuot-xoa" @onclick="() => OnXoa.InvokeAsync(G)" aria-label="Xóa khoản này">Xóa</button>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public GiaoDich G { get; set; } = default!;
+    /// <summary>Số thứ tự để các dòng trượt vào lần lượt.</summary>
+    [Parameter] public int Stt { get; set; }
+    [Parameter] public bool DangXoa { get; set; }
+    /// <summary>Hiện cả ngày (dùng ở màn hình chính, nơi không nhóm theo ngày).</summary>
+    [Parameter] public bool MoNgay { get; set; }
+    [Parameter] public EventCallback<GiaoDich> OnSua { get; set; }
+    [Parameter] public EventCallback<GiaoDich> OnXoa { get; set; }
+}

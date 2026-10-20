@@ -1,0 +1,179 @@
+@page "/lich-su"
+@inherits TrangCoSoDuLieu
+@inject GiaoDichService GD
+@inject SheetService Sheet
+
+<PageTitle>Lịch sử · Chi tiêu</PageTitle>
+
+<div class="trang">
+    <div class="dau-trang">
+        <h1>Lịch sử</h1>
+    </div>
+
+    <div class="the thanh-loc">
+        <div class="o-chon" role="tablist" aria-label="Khoảng thời gian">
+            <button type="button" role="tab" class="chip @(_khoang == Khoang.Thang ? "chon" : "")" @onclick="@(() => DatKhoang(Khoang.Thang))">Theo tháng</button>
+            <button type="button" role="tab" class="chip @(_khoang == Khoang.Tuan ? "chon" : "")" @onclick="@(() => DatKhoang(Khoang.Tuan))">Theo tuần</button>
+            <button type="button" role="tab" class="chip @(_khoang == Khoang.TatCa ? "chon" : "")" @onclick="@(() => DatKhoang(Khoang.TatCa))">Tất cả</button>
+        </div>
+
+        @if (_khoang != Khoang.TatCa)
+        {
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+                <button type="button" class="nut nut-tron" aria-label="Trước" @onclick="@(() => _offset--)">‹</button>
+                <b class="giua" style="font-size:18px">@NhanKhoang()</b>
+                <button type="button" class="nut nut-tron" aria-label="Sau" disabled="@(_offset >= 0)" @onclick="@(() => _offset++)">›</button>
+            </div>
+        }
+
+        <div class="o-tim">
+            <span class="kinh-lup" aria-hidden="true"><Bieu Ten="tim" Class="nho" /></span>
+            <input type="search" class="o-nhap" placeholder="Tìm theo ghi chú hoặc danh mục" aria-label="Tìm kiếm"
+                   enterkeyhint="search" autocomplete="off" @bind="_tim" @bind:event="oninput" />
+        </div>
+
+        <div class="hang-loc">
+            <select class="o-nhap" aria-label="Lọc theo loại" @bind="_loai">
+                <option value="">Thu và chi</option>
+                <option value="chi">Chỉ khoản chi</option>
+                <option value="thu">Chỉ khoản thu</option>
+            </select>
+            <select class="o-nhap" aria-label="Lọc theo danh mục" @bind="_dm">
+                <option value="">Mọi danh mục</option>
+                @foreach (var d in Kho.DsDanhMuc)
+                {
+                    <option value="@d.Id">@d.Icon @d.Ten</option>
+                }
+            </select>
+        </div>
+    </div>
+
+    @{
+        var ds = Loc();
+        var tongChi = ds.Where(g => g.Loai == LoaiGiaoDich.Chi).Sum(g => g.SoTien);
+        var tongThu = ds.Where(g => g.Loai == LoaiGiaoDich.Thu).Sum(g => g.SoTien);
+        var homNay = Dong.HomNay;
+        var stt = 0;
+    }
+
+    @if (ds.Count == 0)
+    {
+        if (Kho.DsGiaoDich.Count == 0)
+        {
+            <EmptyState Kieu="giao-dich" Tieu="Chưa có khoản nào" Mo="Bấm nút + ở giữa, gõ ví dụ “ăn phở 50k” là xong.">
+                <button type="button" class="nut nut-chinh" @onclick="Sheet.MoMoi">Thêm khoản đầu tiên</button>
+            </EmptyState>
+        }
+        else
+        {
+            <EmptyState Kieu="giao-dich" Tieu="Không có kết quả" Mo="Thử đổi khoảng thời gian hoặc bỏ bớt bộ lọc.">
+                <button type="button" class="nut" @onclick="XoaLoc">Bỏ bộ lọc</button>
+            </EmptyState>
+        }
+    }
+    else
+    {
+        <div class="the" style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap">
+            <span><b>@ds.Count</b> giao dịch</span>
+            <span class="chu-chi dam so">Chi @DinhDang.Tien(tongChi)</span>
+            <span class="chu-thu dam so">Thu @DinhDang.Tien(tongThu)</span>
+        </div>
+
+        @foreach (var nhom in ds.GroupBy(g => g.Ngay).OrderByDescending(n => n.Key))
+        {
+            var chiNgay = nhom.Where(g => g.Loai == LoaiGiaoDich.Chi).Sum(g => g.SoTien);
+            <section class="nhom-ngay" aria-label="@DinhDang.NhanNgay(nhom.Key, homNay)">
+                <div class="tieu-de-ngay">
+                    <span>@DinhDang.NhanNgay(nhom.Key, homNay)</span>
+                    @if (chiNgay > 0)
+                    {
+                        <span class="so">Chi @DinhDang.Tien(chiNgay)</span>
+                    }
+                </div>
+                @foreach (var g in nhom.OrderByDescending(x => x.TaoLuc))
+                {
+                    <HangGiaoDich @key="g.Id" G="g" Stt="@(Math.Min(stt++, 12))" DangXoa="@_dangXoa.Contains(g.Id)"
+                                  OnSua="Sua" OnXoa="Xoa" />
+                }
+            </section>
+        }
+    }
+</div>
+
+@code {
+    private enum Khoang { Thang, Tuan, TatCa }
+
+    private Khoang _khoang = Khoang.Thang;
+    private int _offset;          // 0 = hiện tại, -1 = kỳ trước...
+    private string _tim = "";
+    private string _loai = "";
+    private string _dm = "";
+    private readonly HashSet<Guid> _dangXoa = new();
+
+    private void DatKhoang(Khoang k) { _khoang = k; _offset = 0; }
+
+    private void XoaLoc() { _khoang = Khoang.TatCa; _tim = ""; _loai = ""; _dm = ""; _offset = 0; }
+
+    private (DateOnly Tu, DateOnly Den)? KhoangNgay()
+    {
+        var hn = Dong.HomNay;
+        switch (_khoang)
+        {
+            case Khoang.Thang:
+                var dau = new DateOnly(hn.Year, hn.Month, 1).AddMonths(_offset);
+                return (dau, dau.AddMonths(1).AddDays(-1));
+            case Khoang.Tuan:
+                var dauTuan = hn.AddDays(-(((int)hn.DayOfWeek + 6) % 7)).AddDays(7 * _offset);
+                return (dauTuan, dauTuan.AddDays(6));
+            default:
+                return null;
+        }
+    }
+
+    private string NhanKhoang()
+    {
+        var k = KhoangNgay();
+        if (k == null) return "";
+        return _khoang == Khoang.Thang
+            ? DinhDang.Thang(k.Value.Tu.Year, k.Value.Tu.Month)
+            : $"{k.Value.Tu:dd/MM} – {DinhDang.Ngay(k.Value.Den)}";
+    }
+
+    private List<GiaoDich> Loc()
+    {
+        IEnumerable<GiaoDich> q = Kho.DsGiaoDich;
+        var k = KhoangNgay();
+        if (k != null) q = q.Where(g => g.Ngay >= k.Value.Tu && g.Ngay <= k.Value.Den);
+        if (_loai == "chi") q = q.Where(g => g.Loai == LoaiGiaoDich.Chi);
+        else if (_loai == "thu") q = q.Where(g => g.Loai == LoaiGiaoDich.Thu);
+        if (!string.IsNullOrEmpty(_dm)) q = q.Where(g => g.DanhMucId == _dm);
+
+        var tim = VanBan.GonKhoangTrang(VanBan.ChuanHoa(_tim));
+        if (tim.Length > 0)
+        {
+            // Tìm không phân biệt dấu: gõ "pho" vẫn ra "Phở"
+            q = q.Where(g => VanBan.ChuanHoa(g.GhiChu).Contains(tim)
+                             || VanBan.ChuanHoa(Kho.TenDanhMuc(g.DanhMucId)).Contains(tim));
+        }
+        return q.ToList();
+    }
+
+    private Task Sua(GiaoDich g)
+    {
+        Sheet.MoSua(g);
+        return Task.CompletedTask;
+    }
+
+    private async Task Xoa(GiaoDich g)
+    {
+        if (!_dangXoa.Add(g.Id)) return;
+        await Rung.RungAsync(15);
+        await Task.Delay(260);   // chờ hiệu ứng trượt ra rồi mới xóa thật
+        await AnToanAsync(async () =>
+        {
+            var daXoa = await GD.XoaAsync(g.Id);
+            if (daXoa != null) Bao.DaXoa(daXoa);
+        });
+        _dangXoa.Remove(g.Id);
+    }
+}

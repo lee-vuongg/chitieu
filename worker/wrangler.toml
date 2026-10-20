@@ -1,0 +1,8 @@
+name = "chitieu-ai"
+main = "worker.js"
+compatibility_date = "2025-01-01"
+
+# Không ghi key vào file này. Đặt bằng lệnh:
+#   npx wrangler secret put GEMINI_API_KEY
+#   npx wrangler secret put APP_SECRET
+#   npx wrangler secret put ALLOWED_ORIGIN     (ví dụ https://chitieu.pages.dev)

@@ -1,0 +1,47 @@
+@using System.Globalization
+
+<div class="donut-khung">
+    <div class="donut" role="img" aria-label="Biểu đồ chi tiêu theo danh mục">
+        <svg viewBox="0 0 120 120">
+            <circle class="vong-nen" cx="60" cy="60" r="@R" stroke-width="15" />
+            <g transform="rotate(-90 60 60)">
+                @{ var off = 0.0; }
+                @for (var i = 0; i < Mieng.Count; i++)
+                {
+                    var m = Mieng[i];
+                    var dai = Math.Max(0.5, C * m.TyLe - (Mieng.Count > 1 ? 2 : 0));
+                    <circle class="mieng" cx="60" cy="60" r="@R" stroke="@m.Mau"
+                            style="--c:@F(C);--len:@F(dai);--off:@F(off);--i:@i" />
+                    off += C * m.TyLe;
+                }
+            </g>
+        </svg>
+        <div class="giua-donut">
+            <small>@NhanGiua</small>
+            <b>@DinhDang.TienRutGon(SoGiua)</b>
+        </div>
+    </div>
+    <div class="chu-giai">
+        @foreach (var m in Mieng)
+        {
+            <div class="dong">
+                <span class="cham" style="background:@m.Mau"></span>
+                <span class="t">@m.Ten</span>
+                <span class="p">@DinhDang.PhanTram(m.TyLe)</span>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    public record MiengDonut(string Ten, string Mau, long SoTien, double TyLe);
+
+    [Parameter] public List<MiengDonut> Mieng { get; set; } = new();
+    [Parameter] public string NhanGiua { get; set; } = "Tổng chi";
+    [Parameter] public long SoGiua { get; set; }
+
+    private const double R = 48;
+    private static readonly double C = 2 * Math.PI * R;
+
+    private static string F(double d) => d.ToString("0.###", CultureInfo.InvariantCulture);
+}

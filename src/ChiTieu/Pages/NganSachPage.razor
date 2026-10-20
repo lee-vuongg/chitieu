@@ -1,0 +1,206 @@
+@page "/ngan-sach"
+@inherits TrangCoSoDuLieu
+@inject QuanLyNganSach NganSachQL
+
+<PageTitle>Ngân sách · Chi tiêu</PageTitle>
+
+@{
+    var hn = Dong.HomNay;
+    var tt = NganSachQL.TinhTrang(hn.Year, hn.Month);
+    var tong = tt.FirstOrDefault(t => t.DanhMucId == null);
+    var theoDm = tt.Where(t => t.DanhMucId != null).ToDictionary(t => t.DanhMucId!);
+    var canhBao = NganSachQL.CanhBaoThangNay();
+    var stt = 0;
+}
+
+<div class="trang">
+    <div class="dau-trang">
+        <div>
+            <div class="phu">@DinhDang.Thang(hn.Year, hn.Month)</div>
+            <h1>Ngân sách</h1>
+        </div>
+    </div>
+
+    <p class="chu-phu">Đặt hạn mức chi mỗi tháng. Hạn mức giữ nguyên cho các tháng sau. Ứng dụng sẽ nhắc khi gần hết hoặc có nguy cơ vượt.</p>
+
+    @foreach (var c in canhBao)
+    {
+        <CanhBaoCard CB="c" />
+    }
+
+    @* ===== Ngân sách tổng ===== *@
+    <div class="the lan-luot" style="--i:0">
+        <div class="the-tieu-de">
+            <h2>Tổng cả tháng</h2>
+            <button type="button" class="nut nut-nho" @onclick="@(() => MoSua(null))">@(tong == null ? "Đặt hạn mức" : "Sửa")</button>
+        </div>
+        @if (tong == null)
+        {
+            <p class="chu-phu">Chưa đặt. Hãy đặt tổng số tiền tối đa bạn muốn chi trong một tháng.</p>
+        }
+        else
+        {
+            var conLaiText = tong.ConLai >= 0
+            ? "Còn " + DinhDang.Tien(tong.ConLai)
+            : "Vượt " + DinhDang.Tien(-tong.ConLai);
+            var lopConLai = tong.ConLai < 0 ? "so dam chu-do" : "so dam";
+            <div class="dong-ns">
+                <div class="tren">
+                    <span class="so dam" style="font-size:26px">@DinhDang.Tien(tong.DaChi)</span>
+                    <span class="chu-phu so">/ @DinhDang.Tien(tong.HanMuc)</span>
+                </div>
+                <ThanhNganSach TyLe="tong.TyLe" Muc="tong.Muc" Thu="0" />
+                <div class="tren">
+                    <span class="huy-hieu @LopHuyHieu(tong.Muc)">@NhanMuc(tong)</span>
+                    <span class="@lopConLai">@conLaiText</span>
+                </div>
+                @if (tong.DuBaoCuoiThang > 0)
+                {
+                    var vuotText = tong.CoDuBaoVuot ? ", vượt " + DinhDang.Tien(tong.DuBaoVuot) : "";
+                    <p class="tro-giup">📈 Dự báo cuối tháng chi khoảng <b>@DinhDang.Tien(tong.DuBaoCuoiThang)</b>@vuotText.</p>
+                }
+            </div>
+        }
+    </div>
+
+    @* ===== Theo từng danh mục ===== *@
+    <div class="the lan-luot" style="--i:1">
+        <div class="the-tieu-de"><h2>Theo danh mục</h2></div>
+        <div style="display:flex;flex-direction:column;gap:18px">
+            @foreach (var dm in Kho.DanhMucTheoLoai(LoaiGiaoDich.Chi))
+            {
+                var id = dm.Id;
+                theoDm.TryGetValue(id, out var ttDm);
+                var nhan = (ttDm == null ? "Đặt hạn mức cho " : "Sửa hạn mức ") + dm.Ten;
+                <div class="dong-ns">
+                    <div class="tren">
+                        <span class="ten"><span aria-hidden="true">@dm.Icon</span> @dm.Ten</span>
+                        <button type="button" class="nut nut-nho" aria-label="@nhan" @onclick="@(() => MoSua(id))">@(ttDm == null ? "Đặt" : "Sửa")</button>
+                    </div>
+                    @if (ttDm != null)
+                    {
+                        <ThanhNganSach TyLe="ttDm.TyLe" Muc="ttDm.Muc" Thu="@(++stt)" />
+                        <div class="tren">
+                            <span class="so">@DinhDang.Tien(ttDm.DaChi) <span class="chu-phu">/ @DinhDang.Tien(ttDm.HanMuc)</span></span>
+                            <span class="huy-hieu @LopHuyHieu(ttDm.Muc)">@NhanMuc(ttDm)</span>
+                        </div>
+                        @if (ttDm.CoDuBaoVuot)
+                        {
+                            <p class="tro-giup">📈 Với tốc độ này cuối tháng sẽ vượt <b>@DinhDang.Tien(ttDm.DuBaoVuot)</b>.</p>
+                        }
+                    }
+                    else
+                    {
+                        <span class="tro-giup">Chưa đặt hạn mức</span>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@if (_dangSua)
+{
+    <div class="sheet-nen" @onclick="DongSua"></div>
+    <div class="sheet" role="dialog" aria-modal="true" aria-label="Đặt hạn mức">
+        <div class="sheet-tay"></div>
+        <div class="sheet-dau">
+            <h2>Hạn mức: @(_suaId == null ? "Tổng tháng" : Kho.TenDanhMuc(_suaId))</h2>
+            <button type="button" class="nut nut-tron nut-trong" aria-label="Đóng" @onclick="DongSua"><Bieu Ten="dong" /></button>
+        </div>
+        <div class="sheet-than">
+            <div class="truong">
+                <label for="o-han-muc">Số tiền tối đa mỗi tháng (đồng)</label>
+                <input id="o-han-muc" class="o-nhap o-so" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="0"
+                       @bind="NhapHanMuc" @bind:event="oninput" />
+                <span class="tro-giup so">= @DinhDang.Tien(_hanMuc)</span>
+                <div class="o-chon">
+                    @foreach (var goiY in new long[] { 100_000, 500_000, 1_000_000, 5_000_000 })
+                    {
+                        var them = goiY;
+                        <button type="button" class="chip" @onclick="@(() => Cong(them))">+@DinhDang.TienRutGon(goiY)</button>
+                    }
+                    <button type="button" class="chip" @onclick="@(() => Cong(-_hanMuc))">Xóa số</button>
+                </div>
+            </div>
+            @if (!string.IsNullOrEmpty(_loi))
+            {
+                <p class="loi" role="alert">@_loi</p>
+            }
+        </div>
+        <div class="sheet-chan">
+            @if (NganSachQL.HanMucCuaDanhMuc(_suaId) > 0)
+            {
+                <button type="button" class="nut nut-xoa" @onclick="BoHanMuc">Bỏ hạn mức</button>
+            }
+            <button type="button" class="nut nut-chinh nut-tran" disabled="@(_hanMuc <= 0)" @onclick="LuuHanMuc">Lưu</button>
+        </div>
+    </div>
+}
+
+@code {
+    private bool _dangSua;
+    private string? _suaId;
+    private long _hanMuc;
+    private string _hanMucText = "";
+    private string? _loi;
+
+    private static string LopHuyHieu(MucCanhBao m) => m switch { MucCanhBao.Do => "do", MucCanhBao.Vang => "vang", _ => "thu" };
+
+    private static string NhanMuc(TinhTrangNganSach t) => t.Muc switch
+    {
+        MucCanhBao.Do => "Đã vượt " + DinhDang.PhanTram(t.TyLe),
+        MucCanhBao.Vang => "Sắp hết · " + DinhDang.PhanTram(t.TyLe),
+        _ => "Đã dùng " + DinhDang.PhanTram(t.TyLe)
+    };
+
+    private string NhapHanMuc
+    {
+        get => _hanMucText;
+        set
+        {
+            _hanMucText = value ?? "";
+            var so = new string(_hanMucText.Where(char.IsDigit).ToArray());
+            _hanMuc = long.TryParse(so, out var v) && v < 1_000_000_000_000 ? v : 0;
+            _loi = null;
+        }
+    }
+
+    private void MoSua(string? danhMucId)
+    {
+        _suaId = danhMucId;
+        _hanMuc = NganSachQL.HanMucCuaDanhMuc(danhMucId);
+        _hanMucText = _hanMuc == 0 ? "" : _hanMuc.ToString();
+        _loi = null;
+        _dangSua = true;
+    }
+
+    private void DongSua() => _dangSua = false;
+
+    private void Cong(long them)
+    {
+        _hanMuc = Math.Max(0, _hanMuc + them);
+        _hanMucText = _hanMuc == 0 ? "" : _hanMuc.ToString();
+    }
+
+    private async Task LuuHanMuc()
+    {
+        await AnToanAsync(async () =>
+        {
+            await NganSachQL.DatHanMucAsync(_suaId, _hanMuc);
+            await Rung.RungAsync(12);
+            Bao.Xong("Đã lưu hạn mức");
+            _dangSua = false;
+        });
+    }
+
+    private async Task BoHanMuc()
+    {
+        await AnToanAsync(async () =>
+        {
+            await NganSachQL.DatHanMucAsync(_suaId, 0);
+            Bao.Thong("Đã bỏ hạn mức");
+            _dangSua = false;
+        });
+    }
+}

@@ -1,0 +1,24 @@
+@inject IJSRuntime JS
+
+@* Số tiền đếm tăng dần mỗi khi giá trị đổi. JS sửa nodeValue của text node, nên Blazor vẫn kiểm soát được phần tử. *@
+<span @ref="_el" class="@Class">@(Dau + DinhDang.So(Gia) + Hau)</span>
+
+@code {
+    [Parameter] public long Gia { get; set; }
+    [Parameter] public string? Class { get; set; }
+    /// <summary>Tiền tố, ví dụ "+" hoặc "-".</summary>
+    [Parameter] public string Dau { get; set; } = "";
+    [Parameter] public string Hau { get; set; } = " đ";
+
+    private ElementReference _el;
+    private long? _daHien;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_daHien == Gia) return;
+        var tu = _daHien ?? 0;
+        _daHien = Gia;
+        try { await JS.InvokeVoidAsync("chitieuUtil.demSo", _el, tu, Gia, Dau, Hau); }
+        catch (JSException) { /* không có hiệu ứng thì vẫn hiện số đúng */ }
+    }
+}

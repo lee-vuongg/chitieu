@@ -1,0 +1,44 @@
+@* Biểu đồ cột chi theo ngày trong tháng. Chạm vào cột để xem số tiền của ngày đó. *@
+@{
+    var max = Gia.Length == 0 ? 0 : Gia.Max();
+}
+<div class="cot-khung" role="group" aria-label="Chi theo ngày">
+    @for (var i = 0; i < Gia.Length; i++)
+    {
+        var idx = i;
+        var phanTram = max == 0 ? 0 : Math.Max(4, (int)Math.Round(Gia[i] * 100.0 / max));
+        <button type="button" class="cot @(Gia[i] == 0 ? "rong" : "") @(_chon == i ? "chon" : "") @(HomNay == i + 1 ? "homnay" : "")"
+                style="--h:@(phanTram)%;--i:@i" @onclick="() => Chon(idx)"
+                aria-label="Ngày @(i + 1): @DinhDang.Tien(Gia[i])">
+            <i></i>
+        </button>
+    }
+</div>
+<div class="nhan-cot" aria-hidden="true">
+    @for (var i = 0; i < Gia.Length; i++)
+    {
+        <span>@((i == 0 || (i + 1) % 5 == 0) ? (i + 1).ToString() : "")</span>
+    }
+</div>
+<p class="tro-giup giua" style="margin-top:8px">
+    @if (_chon >= 0 && _chon < Gia.Length)
+    {
+        <b>Ngày @(_chon + 1)/@Thang:</b> <span class="so dam">@DinhDang.Tien(Gia[_chon])</span>
+    }
+    else
+    {
+        <span>Chạm vào cột để xem từng ngày</span>
+    }
+</p>
+
+@code {
+    /// <summary>Chi theo từng ngày; chỉ số 0 = ngày 1.</summary>
+    [Parameter] public long[] Gia { get; set; } = Array.Empty<long>();
+    [Parameter] public int Thang { get; set; }
+    /// <summary>Ngày (1..31) của hôm nay nếu đang xem tháng hiện tại, ngược lại 0.</summary>
+    [Parameter] public int HomNay { get; set; }
+
+    private int _chon = -1;
+
+    private void Chon(int i) => _chon = _chon == i ? -1 : i;
+}

@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Chi tiêu">
+  <rect width="512" height="512" rx="113" fill="#1D2430"/>
+  <rect x="146" y="262" width="70" height="132" rx="22" fill="#2FBF71" transform="translate(0,26)"/>
+  <rect x="226" y="232" width="70" height="162" rx="22" fill="#F2B01E" transform="translate(0,26)"/>
+  <rect x="306" y="196" width="70" height="198" rx="22" fill="#E2552B" transform="translate(0,26)"/>
+  <rect x="138" y="430" width="244" height="8" rx="4" fill="#F4F0E6"/>
+</svg>

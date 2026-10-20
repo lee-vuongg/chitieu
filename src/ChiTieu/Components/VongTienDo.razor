@@ -1,0 +1,25 @@
+@using System.Globalization
+
+<div class="vong" style="width:@(Co)px;height:@(Co)px" role="img" aria-label="Đã đạt @DinhDang.PhanTram(TyLe)">
+    <svg viewBox="0 0 120 120" width="@Co" height="@Co">
+        <circle class="vong-nen" cx="60" cy="60" r="@R" stroke-width="13" />
+        <g transform="rotate(-90 60 60)">
+            @if (TyLe > 0.002)
+            {
+                <circle class="vong-tien" cx="60" cy="60" r="@R" stroke="@Mau" stroke-width="13"
+                        style="--c:@F(C);--len:@F(C * Math.Min(1, TyLe))" />
+            }
+        </g>
+    </svg>
+    <div class="giua-vong" style="font-size:@(Co / 5)px">@DinhDang.PhanTram(Math.Min(1, TyLe))</div>
+</div>
+
+@code {
+    [Parameter] public double TyLe { get; set; }
+    [Parameter] public int Co { get; set; } = 96;
+    [Parameter] public string Mau { get; set; } = "var(--thu)";
+
+    private const double R = 50;
+    private static readonly double C = 2 * Math.PI * R;
+    private static string F(double d) => d.ToString("0.###", CultureInfo.InvariantCulture);
+}

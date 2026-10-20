@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Chi tiêu</title>
+    <base href="/" />
+    <meta name="description" content="Sổ chi tiêu cá nhân, dùng được cả khi không có mạng." />
+    <meta name="theme-color" content="#F4F0E6" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="format-detection" content="telephone=no" />
+
+    <!-- iOS Safari: chạy full màn hình khi Thêm vào Màn hình chính -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Chi tiêu" />
+    <link rel="apple-touch-icon" href="icon-180.png" />
+    <link rel="icon" type="image/png" href="icon-192.png" />
+    <link rel="manifest" href="manifest.json" />
+
+    <link rel="stylesheet" href="_content/MudBlazor/MudBlazor.min.css" />
+    <link rel="stylesheet" href="css/app.css" />
+    <link rel="stylesheet" href="css/hieu-ung.css" />
+    <link href="ChiTieu.styles.css" rel="stylesheet" />
+    <link href="_framework/blazor.webassembly.js" rel="preload" as="script" />
+</head>
+
+<body>
+    <div id="app">
+        <!-- Màn hình chờ trong lúc tải lần đầu -->
+        <div class="splash" role="status" aria-live="polite">
+            <div class="splash-logo">đ</div>
+            <p>Đang mở sổ chi tiêu…</p>
+        </div>
+    </div>
+
+    <div id="blazor-error-ui">
+        Có lỗi xảy ra.
+        <a href="" class="reload">Tải lại</a>
+        <span class="dismiss" role="button" aria-label="Đóng">✕</span>
+    </div>
+
+    <script src="js/db.js"></script>
+    <script src="js/app.js"></script>
+    <script src="_content/MudBlazor/MudBlazor.min.js"></script>
+    <script src="_framework/blazor.webassembly.js"></script>
+    <script>
+        // Chặn zoom đúp vô ý trên iOS nhưng vẫn cho phóng to bằng hai ngón (hỗ trợ người lớn tuổi)
+        document.addEventListener('dblclick', function (e) { e.preventDefault(); }, { passive: false });
+        document.querySelector('#blazor-error-ui .dismiss').addEventListener('click', function () {
+            document.getElementById('blazor-error-ui').style.display = 'none';
+        });
+    </script>
+</body>
+
+</html>

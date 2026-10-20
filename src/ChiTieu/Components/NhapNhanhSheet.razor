@@ -1,0 +1,437 @@
+@implements IDisposable
+@inject SheetService Sheet
+@inject KhoDuLieu Kho
+@inject GiaoDichService GD
+@inject AiService Ai
+@inject ThongBao Bao
+@inject PhanHoi Rung
+@inject DongHo Dong
+
+@if (Sheet.Mo)
+{
+    <div class="sheet-nen @(_dangDong ? "dang-dong" : "")" @onclick="DongAsync"></div>
+    <div class="sheet @(_dangDong ? "dang-dong" : "")" role="dialog" aria-modal="true" aria-label="@TieuDe">
+        <div class="sheet-tay"></div>
+        <div class="sheet-dau">
+            <h2>@TieuDe</h2>
+            <button type="button" class="nut nut-tron nut-trong" aria-label="Đóng" @onclick="DongAsync"><Bieu Ten="dong" /></button>
+        </div>
+
+        @if (_ketQua != null)
+        {
+            @* ===== Sau khi lưu: hiện cảnh báo ngân sách ngay ===== *@
+            <div class="sheet-than">
+                <div class="giua" style="display:flex;flex-direction:column;gap:6px;align-items:center">
+                    <div class="nay" style="font-size:54px;line-height:1" aria-hidden="true">✅</div>
+                    <h2>Đã lưu</h2>
+                    <div class="so dam @(_ketQua.Loai == LoaiGiaoDich.Thu ? "chu-thu" : "chu-chi")" style="font-size:30px">
+                        @(_ketQua.Loai == LoaiGiaoDich.Thu ? "+" : "-")@DinhDang.Tien(_ketQua.SoTien)
+                    </div>
+                    <div class="chu-phu">@Kho.TenDanhMuc(_ketQua.DanhMucId) · @DinhDang.Ngay(_ketQua.Ngay)</div>
+                </div>
+                @foreach (var c in _canhBao)
+                {
+                    <CanhBaoCard CB="c" />
+                }
+            </div>
+            <div class="sheet-chan">
+                <button type="button" class="nut nut-chinh nut-tran" @onclick="DongAsync">Đã hiểu</button>
+            </div>
+        }
+        else
+        {
+            <div class="sheet-than">
+                @if (!DangSua)
+                {
+                    <div class="nhom-loai" role="tablist">
+                        <button type="button" role="tab" class="@(_tab == "nhanh" ? "chon tab" : "")" @onclick="@(() => _tab = "nhanh")">Gõ nhanh</button>
+                        <button type="button" role="tab" class="@(_tab == "tay" ? "chon tab" : "")" @onclick="@(() => _tab = "tay")">Nhập tay</button>
+                    </div>
+                }
+
+                @if (_tab == "nhanh" && !DangSua)
+                {
+                    <div class="truong">
+                        <label for="o-cau">Gõ câu như nói chuyện</label>
+                        <input id="o-cau" @ref="_oCau" class="o-nhap" type="text" enterkeyhint="done" autocomplete="off"
+                               autocapitalize="none" autocorrect="off" spellcheck="false"
+                               placeholder="Ví dụ: ăn phở 50k"
+                               @bind="Cau" @bind:event="oninput" @onkeydown="PhimCau" />
+                        <span class="tro-giup">Ví dụ: “đổ xăng 80 nghìn”, “lương 10tr”, “hôm qua cà phê 35k”</span>
+                    </div>
+
+                    @if (_kq?.SoTien is > 0)
+                    {
+                        <div class="xem-truoc">
+                            <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+                                <span class="so-tien so @(LoaiHL == LoaiGiaoDich.Thu ? "chu-thu" : "chu-chi")">@(LoaiHL == LoaiGiaoDich.Thu ? "+" : "-")@DinhDang.Tien(_kq.SoTien.Value)</span>
+                                <span class="huy-hieu @(LoaiHL == LoaiGiaoDich.Thu ? "thu" : "chi")">@(LoaiHL == LoaiGiaoDich.Thu ? "Thu" : "Chi")</span>
+                            </div>
+                            <div><b>@(string.IsNullOrWhiteSpace(_kq.GhiChu) ? "Không có ghi chú" : _kq.GhiChu)</b></div>
+                            <div class="chu-phu">Ngày @DinhDang.Ngay(NgayHL) · @Kho.TimDanhMuc(DmHL)?.Icon @Kho.TenDanhMuc(DmHL)</div>
+                        </div>
+
+                        @if (_kq.DoTinCay < ParserService.NguongTinCay && !_nguoiChon)
+                        {
+                            <p class="tro-giup">🤔 Chưa chắc về danh mục hoặc số tiền. Hãy kiểm tra và chạm để chọn danh mục bên dưới.</p>
+                        }
+                        @if (!string.IsNullOrEmpty(_loiAi))
+                        {
+                            <p class="tro-giup">ℹ️ @_loiAi</p>
+                        }
+
+                        <div class="nhom-loai" aria-label="Loại giao dịch">
+                            <button type="button" class="@(LoaiHL == LoaiGiaoDich.Chi ? "chon chi" : "")" @onclick="@(() => DoiLoaiNhanh(LoaiGiaoDich.Chi))">Chi</button>
+                            <button type="button" class="@(LoaiHL == LoaiGiaoDich.Thu ? "chon thu" : "")" @onclick="@(() => DoiLoaiNhanh(LoaiGiaoDich.Thu))">Thu</button>
+                        </div>
+
+                        <div class="o-chon" role="listbox" aria-label="Danh mục">
+                            @foreach (var dm in Kho.DanhMucTheoLoai(LoaiHL))
+                            {
+                                var id = dm.Id;
+                                <button type="button" role="option" class="chip @(DmHL == id ? "chon" : "")" @onclick="@(() => ChonDmNhanh(id))">@dm.Icon @dm.Ten</button>
+                            }
+                        </div>
+
+                        <div class="truong">
+                            <label for="o-ngay-nhanh">Ngày</label>
+                            <input id="o-ngay-nhanh" type="date" class="o-nhap" value="@NgayHL.ToString("yyyy-MM-dd")"
+                                   max="@Dong.HomNay.ToString("yyyy-MM-dd")" @onchange="DoiNgayNhanh" />
+                        </div>
+                    }
+                    else if (_cau.Trim().Length > 0)
+                    {
+                        <p class="tro-giup">Chưa thấy số tiền. Hãy gõ kèm số, ví dụ <b>50k</b>, <b>2 triệu</b>, <b>35 nghìn</b>.</p>
+                    }
+                }
+                else
+                {
+                    @* ===== Nhập tay / sửa ===== *@
+                    <div class="nhom-loai" aria-label="Loại giao dịch">
+                        <button type="button" class="@(_mLoai == LoaiGiaoDich.Chi ? "chon chi" : "")" @onclick="@(() => DoiLoaiTay(LoaiGiaoDich.Chi))">Chi</button>
+                        <button type="button" class="@(_mLoai == LoaiGiaoDich.Thu ? "chon thu" : "")" @onclick="@(() => DoiLoaiTay(LoaiGiaoDich.Thu))">Thu</button>
+                    </div>
+
+                    <div class="truong">
+                        <label for="o-tien">Số tiền (đồng)</label>
+                        <input id="o-tien" class="o-nhap o-so" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off"
+                               placeholder="0" @bind="MSoTien" @bind:event="oninput" />
+                        <span class="tro-giup so">= @DinhDang.Tien(_mSoTien)</span>
+                        <div class="o-chon">
+                            @foreach (var t in new long[] { 10_000, 50_000, 100_000, 500_000 })
+                            {
+                                var them = t;
+                                <button type="button" class="chip" @onclick="@(() => CongTien(them))">+@DinhDang.TienRutGon(t)</button>
+                            }
+                            <button type="button" class="chip" @onclick="@(() => CongTien(-_mSoTien))">Xóa số</button>
+                        </div>
+                    </div>
+
+                    <div class="truong">
+                        <span class="nhan-truong">Danh mục</span>
+                        <div class="luoi-dm">
+                            @foreach (var dm in Kho.DanhMucTheoLoai(_mLoai))
+                            {
+                                var id = dm.Id;
+                                <button type="button" class="o-dm @(_mDm == id ? "chon" : "")" @onclick="@(() => _mDm = id)">
+                                    <span class="bieu-tuong" aria-hidden="true">@dm.Icon</span>@dm.Ten
+                                </button>
+                            }
+                        </div>
+                    </div>
+
+                    <div class="truong">
+                        <label for="o-ghichu">Ghi chú</label>
+                        <input id="o-ghichu" class="o-nhap" type="text" autocomplete="off" placeholder="Ví dụ: Ăn phở với bạn" @bind="_mGhiChu" @bind:event="oninput" />
+                    </div>
+
+                    <div class="truong">
+                        <label for="o-ngay">Ngày</label>
+                        <input id="o-ngay" type="date" class="o-nhap" value="@_mNgay.ToString("yyyy-MM-dd")"
+                               max="@Dong.HomNay.ToString("yyyy-MM-dd")" @onchange="DoiNgayTay" />
+                    </div>
+                }
+
+                @if (!string.IsNullOrEmpty(_loi))
+                {
+                    <p class="loi" role="alert">@_loi</p>
+                }
+            </div>
+
+            <div class="sheet-chan">
+                @if (DangSua)
+                {
+                    <button type="button" class="nut nut-xoa" disabled="@_dangLuu" @onclick="XoaAsync"><Bieu Ten="xoa" Class="nho" /> Xóa</button>
+                }
+                @if (_tab == "nhanh" && !DangSua)
+                {
+                    <button type="button" class="nut nut-chinh nut-tran" disabled="@(_dangLuu || _kq?.SoTien is not > 0)" @onclick="LuuNhanhAsync">
+                        @if (_dangHoiAi) { <span>Đang nhờ AI hiểu giúp…</span> }
+                        else if (_kq?.SoTien is > 0) { <span>Lưu @DinhDang.Tien(_kq.SoTien.Value)</span> }
+                        else { <span>Lưu</span> }
+                    </button>
+                }
+                else
+                {
+                    <button type="button" class="nut nut-chinh nut-tran" disabled="@(_dangLuu || _mSoTien <= 0)" @onclick="LuuTayAsync">
+                        @(DangSua ? "Lưu thay đổi" : "Lưu")
+                    </button>
+                }
+            </div>
+        }
+    </div>
+}
+
+@code {
+    private string _tab = "nhanh";
+    private string _cau = "";
+    private KetQuaParse? _kq;
+    private string? _dmChon;
+    private LoaiGiaoDich? _loaiGhiDe;
+    private DateOnly? _ngayGhiDe;
+    private bool _nguoiChon, _daThuAi, _dangLuu, _dangHoiAi, _dangDong, _eraMo, _canFocus;
+    private string? _loiAi, _loi;
+    private GiaoDich? _ketQua;
+    private List<CanhBaoNganSach> _canhBao = new();
+    private ElementReference _oCau;
+
+    // Nhập tay
+    private LoaiGiaoDich _mLoai = LoaiGiaoDich.Chi;
+    private string _mSoTienText = "";
+    private long _mSoTien;
+    private string _mDm = DanhMucMacDinh.KhacChi;
+    private string _mGhiChu = "";
+    private DateOnly _mNgay;
+
+    private bool DangSua => Sheet.DangSua != null;
+    private string TieuDe => DangSua ? "Sửa giao dịch" : "Thêm khoản mới";
+
+    protected override void OnInitialized() => Sheet.Doi += SheetDoi;
+    public void Dispose() => Sheet.Doi -= SheetDoi;
+
+    private void SheetDoi()
+    {
+        if (Sheet.Mo && !_eraMo) MoMoi();
+        _eraMo = Sheet.Mo;
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    private void MoMoi()
+    {
+        _ketQua = null; _loi = null; _loiAi = null; _canhBao = new();
+        _cau = ""; _kq = null; _dmChon = null; _loaiGhiDe = null; _ngayGhiDe = null;
+        _nguoiChon = false; _daThuAi = false; _dangLuu = false; _dangHoiAi = false; _dangDong = false;
+        var g = Sheet.DangSua;
+        if (g != null)
+        {
+            _tab = "tay";
+            _mLoai = g.Loai; _mSoTien = g.SoTien; _mSoTienText = g.SoTien.ToString();
+            _mDm = g.DanhMucId; _mGhiChu = g.GhiChu; _mNgay = g.Ngay;
+        }
+        else
+        {
+            _tab = "nhanh";
+            _mLoai = LoaiGiaoDich.Chi; _mSoTien = 0; _mSoTienText = "";
+            _mDm = DanhMucMacDinh.KhacChi; _mGhiChu = ""; _mNgay = Dong.HomNay;
+            _canFocus = true;
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_canFocus && Sheet.Mo && _tab == "nhanh")
+        {
+            _canFocus = false;
+            try { await _oCau.FocusAsync(); } catch { /* iOS có thể không cho tự mở bàn phím, người dùng chạm vào ô là được */ }
+        }
+    }
+
+    // ---------- Gõ nhanh ----------
+    private string Cau
+    {
+        get => _cau;
+        set
+        {
+            _cau = value ?? "";
+            _dmChon = null; _loaiGhiDe = null; _nguoiChon = false; _daThuAi = false; _loiAi = null; _loi = null;
+            _kq = string.IsNullOrWhiteSpace(_cau) ? null : GD.Phan(_cau);
+        }
+    }
+
+    private LoaiGiaoDich LoaiHL =>
+        _loaiGhiDe ?? (_dmChon != null ? Kho.TimDanhMuc(_dmChon)?.Loai : null) ?? (_kq?.Loai ?? LoaiGiaoDich.Chi);
+
+    private string DmHL
+    {
+        get
+        {
+            if (_dmChon != null) return _dmChon;
+            var goiY = _kq == null ? null : Kho.TimDanhMuc(_kq.DanhMucId);
+            if (goiY != null && goiY.Loai == LoaiHL) return goiY.Id;
+            return LoaiHL == LoaiGiaoDich.Thu ? DanhMucMacDinh.KhacThu : DanhMucMacDinh.KhacChi;
+        }
+    }
+
+    private DateOnly NgayHL => _ngayGhiDe ?? _kq?.Ngay ?? Dong.HomNay;
+
+    private void DoiLoaiNhanh(LoaiGiaoDich loai) { _loaiGhiDe = loai; _dmChon = null; _nguoiChon = true; }
+    private void ChonDmNhanh(string id) { _dmChon = id; _nguoiChon = true; _loiAi = null; }
+    private void DoiNgayNhanh(ChangeEventArgs e) { if (DateOnly.TryParse(e.Value?.ToString(), out var d)) _ngayGhiDe = d; }
+
+    private async Task PhimCau(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && _kq?.SoTien is > 0) await LuuNhanhAsync();
+    }
+
+    private async Task LuuNhanhAsync()
+    {
+        if (_dangLuu) return;
+        _loi = null;
+        var kq = _kq ?? GD.Phan(_cau);
+        if (kq.SoTien is not > 0) { _loi = "Chưa thấy số tiền. Hãy gõ kèm số, ví dụ 50k."; return; }
+
+        _dangLuu = true;
+        try
+        {
+            // Độ tin cậy thấp -> thử nhờ AI nếu đã cài và có mạng. Mọi lỗi đều quay về kết quả offline.
+            if (!_nguoiChon && kq.DoTinCay < ParserService.NguongTinCay && Ai.DaCauHinh && !_daThuAi)
+            {
+                _dangHoiAi = true; StateHasChanged();
+                var r = await Ai.PhanTichAsync(_cau, kq);
+                _dangHoiAi = false; _daThuAi = true;
+                if (r.Ok && r.Data != null) { kq = r.Data; _kq = kq; }
+                else
+                {
+                    _loiAi = r.Loi;
+                    if (!kq.TimThayDanhMuc)
+                    {
+                        // Không có AI và cũng không đoán được danh mục: dừng lại để người dùng chọn tay
+                        _loiAi = (r.Loi ?? "Chưa nhờ được AI.") + " Hãy chọn danh mục bên dưới rồi bấm Lưu.";
+                        return;
+                    }
+                }
+            }
+
+            // LoaiHL/DmHL đã tính từ _kq (kể cả khi vừa thay bằng kết quả AI) và lựa chọn tay của người dùng
+            var g = new GiaoDich
+            {
+                Loai = LoaiHL, SoTien = kq.SoTien!.Value, DanhMucId = DmHL,
+                GhiChu = kq.GhiChu, Ngay = _ngayGhiDe ?? kq.Ngay
+            };
+            await GD.ThemAsync(g);
+
+            // Học danh mục: người dùng chủ động chọn khác với gợi ý -> lần sau tự dùng
+            if (_dmChon != null && _dmChon != kq.DanhMucId) await GD.HocDanhMucAsync(g.GhiChu, g.DanhMucId);
+
+            await XongAsync(g);
+        }
+        catch (DuLieuException e) { _loi = e.Message; }
+        catch (ArgumentException e) { _loi = e.Message; }
+        finally { _dangLuu = false; _dangHoiAi = false; }
+    }
+
+    // ---------- Nhập tay / sửa ----------
+    private string MSoTien
+    {
+        get => _mSoTienText;
+        set { _mSoTienText = value ?? ""; _mSoTien = ParseSo(_mSoTienText); _loi = null; }
+    }
+
+    private static long ParseSo(string? s)
+    {
+        if (string.IsNullOrEmpty(s)) return 0;
+        var so = new string(s.Where(char.IsDigit).ToArray());
+        return long.TryParse(so, out var v) && v < 1_000_000_000_000 ? v : 0;
+    }
+
+    private void CongTien(long them)
+    {
+        _mSoTien = Math.Max(0, _mSoTien + them);
+        _mSoTienText = _mSoTien == 0 ? "" : _mSoTien.ToString();
+    }
+
+    private void DoiLoaiTay(LoaiGiaoDich loai)
+    {
+        if (_mLoai == loai) return;
+        _mLoai = loai;
+        _mDm = loai == LoaiGiaoDich.Thu ? DanhMucMacDinh.KhacThu : DanhMucMacDinh.KhacChi;
+    }
+
+    private void DoiNgayTay(ChangeEventArgs e) { if (DateOnly.TryParse(e.Value?.ToString(), out var d)) _mNgay = d; }
+
+    private async Task LuuTayAsync()
+    {
+        if (_dangLuu) return;
+        _loi = null;
+        if (_mSoTien <= 0) { _loi = "Hãy nhập số tiền lớn hơn 0."; return; }
+        _dangLuu = true;
+        try
+        {
+            var cu = Sheet.DangSua;
+            var g = new GiaoDich
+            {
+                Id = cu?.Id ?? Guid.NewGuid(), TaoLuc = cu?.TaoLuc ?? DateTime.UtcNow,
+                Loai = _mLoai, SoTien = _mSoTien, DanhMucId = _mDm, GhiChu = _mGhiChu.Trim(), Ngay = _mNgay
+            };
+            if (cu != null)
+            {
+                await GD.SuaAsync(g);
+                if (cu.DanhMucId != g.DanhMucId) await GD.HocDanhMucAsync(g.GhiChu, g.DanhMucId);
+                Bao.Xong("Đã lưu thay đổi");
+                await DongAsync();
+            }
+            else
+            {
+                await GD.ThemAsync(g);
+                var goiY = GD.Phan(g.GhiChu);
+                if (g.GhiChu.Length >= 2 && (!goiY.TimThayDanhMuc || goiY.DanhMucId != g.DanhMucId))
+                    await GD.HocDanhMucAsync(g.GhiChu, g.DanhMucId);
+                await XongAsync(g);
+            }
+        }
+        catch (DuLieuException e) { _loi = e.Message; }
+        catch (ArgumentException e) { _loi = e.Message; }
+        finally { _dangLuu = false; }
+    }
+
+    private async Task XoaAsync()
+    {
+        var cu = Sheet.DangSua;
+        if (cu == null || _dangLuu) return;
+        _dangLuu = true;
+        try
+        {
+            var daXoa = await GD.XoaAsync(cu.Id);
+            if (daXoa != null) Bao.DaXoa(daXoa);
+            await DongAsync();
+        }
+        catch (DuLieuException e) { _loi = e.Message; }
+        finally { _dangLuu = false; }
+    }
+
+    // ---------- Chung ----------
+    private async Task XongAsync(GiaoDich g)
+    {
+        var cb = g.Loai == LoaiGiaoDich.Chi ? GD.CanhBaoSauKhiLuu(g) : new List<CanhBaoNganSach>();
+        await Rung.RungAsync(cb.Any(c => c.Muc == MucCanhBao.Do) ? 40 : 12);
+        if (cb.Count > 0)
+        {
+            _ketQua = g; _canhBao = cb;   // giữ sheet mở để hiện cảnh báo ngay sau khi lưu
+        }
+        else
+        {
+            Bao.Xong($"Đã lưu {(g.Loai == LoaiGiaoDich.Thu ? "khoản thu" : "khoản chi")} {DinhDang.Tien(g.SoTien)}");
+            await DongAsync();
+        }
+    }
+
+    private async Task DongAsync()
+    {
+        if (_dangDong) return;
+        _dangDong = true;
+        StateHasChanged();
+        await Task.Delay(260);
+        _dangDong = false;
+        Sheet.Dong();
+    }
+}
