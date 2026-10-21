@@ -1,12 +1,47 @@
-// Service worker bản publish: cache toàn bộ file của app để dùng được khi mất mạng hoàn toàn.
+// Service worker bản publish: cache toàn bộ file của app để dùng được khi mất mạng hoàn toàn,
+// và hiện thông báo nhắc ghi chi tiêu khi app đã đóng.
 // service-worker-assets.js được .NET sinh ra lúc publish, liệt kê mọi file kèm mã băm.
 self.importScripts('./service-worker-assets.js');
+
 self.addEventListener('install', event => event.waitUntil(onInstall(event)));
 self.addEventListener('activate', event => event.waitUntil(onActivate(event)));
 self.addEventListener('fetch', event => event.respondWith(onFetch(event)));
 // Người dùng bấm "Cập nhật" ở banner thì mới chuyển sang phiên bản mới
 self.addEventListener('message', event => { if (event.data === 'SKIP_WAITING') self.skipWaiting(); });
 
+// ===== Thông báo nhắc ghi chi tiêu =====
+// Mỗi lần nhắc chọn ngẫu nhiên một câu. Cùng tag nên thông báo mới thay thế thông báo cũ, không chồng nhiều dòng.
+const CAU_NHAC = [
+    'Hôm nay bạn đã ghi chi tiêu chưa?',
+    'Chỉ mất vài giây: nhập số tiền rồi chạm Lưu.',
+    'Ghi ngay hôm nay để cuối tháng khỏi quên.'
+];
+
+self.addEventListener('push', event => {
+    const cauNhac = CAU_NHAC[Math.floor(Math.random() * CAU_NHAC.length)];
+    event.waitUntil(self.registration.showNotification('💰 Chi tiêu', {
+        body: cauNhac,
+        tag: 'nhac-ghi-chi-tieu',
+        renotify: true,
+        icon: 'icon-192.png',
+        badge: 'icon-192.png',
+        data: { url: '/' }
+    }));
+});
+
+self.addEventListener('notificationclick', event => {
+    event.notification.close();
+    const url = (event.notification.data && event.notification.data.url) || '/';
+    event.waitUntil((async () => {
+        const dsCua = await clients.matchAll({ type: 'window', includeUncontrolled: true });
+        for (const c of dsCua) {
+            if ('focus' in c) return c.focus();
+        }
+        return clients.openWindow(url);
+    })());
+});
+
+// ===== Cache ngoại tuyến =====
 const cacheNamePrefix = 'offline-cache-';
 const cacheName = `${cacheNamePrefix}${self.assetsManifest.version}`;
 const offlineAssetsInclude = [/\.dll$/, /\.pdb$/, /\.wasm/, /\.html/, /\.js$/, /\.json$/, /\.css$/, /\.woff2?$/, /\.png$/, /\.jpe?g$/, /\.gif$/, /\.ico$/, /\.svg$/, /\.blat$/, /\.dat$/, /\.webmanifest$/];

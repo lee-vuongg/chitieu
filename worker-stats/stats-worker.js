@@ -111,7 +111,8 @@ export default {
             const khoang = layKhoangNgay(url.searchParams);
             if (!khoang) return new Response('Khoảng ngày không hợp lệ (tối đa 366 ngày)', { status: 400, headers });
             const { tu, den } = khoang;
-            const jsonHeaders = { ...headers, 'Content-Type': 'application/json' };
+                      // Dữ liệu đã được bảo vệ bằng mã quản trị, nên cho phép đọc từ mọi nguồn
+            const jsonHeaders = { 'Access-Control-Allow-Origin': '*', 'Content-Type': 'application/json' };
 
             if (url.pathname === '/stats') {
                 const [tong, hoatDong, suKien] = await Promise.all([
