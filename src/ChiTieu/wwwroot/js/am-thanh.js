@@ -1,5 +1,5 @@
 // am-thanh.js: âm thanh ngắn tạo bằng Web Audio, không cần file âm thanh.
-// Chỉ phát được sau một thao tác chạm của người dùng (đúng với các nút trong app).
+// iOS chỉ cho phát âm thanh sau một lần chạm của người dùng, nên file này mở khóa âm thanh ở lần chạm đầu tiên.
 window.chiTieuAm = (() => {
     const KHOA_TAT = 'chitieu-am-tat';
     let ctx = null;
@@ -13,6 +13,22 @@ window.chiTieuAm = (() => {
         if (ctx.state === 'suspended') ctx.resume();
         return ctx;
     }
+
+    // Phát một đoạn im lặng rất ngắn ngay trong thao tác chạm để iOS cho phép âm thanh về sau
+    function mokKhoa() {
+        const c = nguCanh();
+        if (!c) return;
+        const dem = c.createBuffer(1, 1, 22050);
+        const nguon = c.createBufferSource();
+        nguon.buffer = dem;
+        nguon.connect(c.destination);
+        nguon.start(0);
+    }
+
+    // Chỉ cần mở khóa một lần; lần chạm đầu tiên trên trang là đủ
+    ['pointerdown', 'touchend', 'click'].forEach(su => {
+        document.addEventListener(su, mokKhoa, { once: true, passive: true });
+    });
 
     function tatAm() {
         return localStorage.getItem(KHOA_TAT) === '1';
@@ -38,10 +54,10 @@ window.chiTieuAm = (() => {
 
     // Mỗi phần tử: [tần số Hz, thời điểm bắt đầu (giây), kiểu sóng]
     const MAU = {
-        luu:      [[523.25, 0, 'sine'], [659.25, 0.11, 'sine']],
-        xoa:      [[392.0, 0, 'sine'], [293.66, 0.12, 'sine']],
-        canhBao:  [[880, 0, 'triangle'], [880, 0.2, 'triangle'], [880, 0.4, 'triangle']],
-        mucTieu:  [[523.25, 0, 'sine'], [659.25, 0.1, 'sine'], [783.99, 0.2, 'sine'], [1046.5, 0.32, 'sine']]
+        luu: [[523.25, 0, 'sine'], [659.25, 0.11, 'sine']],
+        xoa: [[392.0, 0, 'sine'], [293.66, 0.12, 'sine']],
+        canhBao: [[880, 0, 'triangle'], [880, 0.2, 'triangle'], [880, 0.4, 'triangle']],
+        mucTieu: [[523.25, 0, 'sine'], [659.25, 0.1, 'sine'], [783.99, 0.2, 'sine'], [1046.5, 0.32, 'sine']]
     };
 
     // kieu: 'luu' | 'xoa' | 'canhBao' | 'mucTieu'
