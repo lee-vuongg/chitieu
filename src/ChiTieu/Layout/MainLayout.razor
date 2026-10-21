@@ -5,6 +5,7 @@
 @inject DongHo Dong
 @inject SheetService Sheet
 @inject SuKienService SuKien
+@inject HoSoService HoSo
 
 <MudThemeProvider Theme="_theme" IsDarkMode="@CaiDat.DangToi" />
 <MudPopoverProvider />
@@ -74,6 +75,7 @@ else
         await CaiDat.KhoiTaoGiaoDienAsync(); // áp dụng sáng/tối
 
         await SuKien.GhiAsync("mo_app");     // thống kê ẩn danh: chỉ đếm lượt mở app
+        await HoSo.DongBoAsync();            // cập nhật hồ sơ và tỷ lệ chi tiêu (nếu đã đồng ý)
     }
 
     private async Task ThuLai()

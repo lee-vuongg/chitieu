@@ -5,6 +5,7 @@
 @inject DbService Db
 @inject IJSRuntime Js
 @inject AmThanh Am
+@inject HoSoService HoSo
 
 <PageTitle>Cài đặt · Chi tiêu</PageTitle>
 
@@ -28,8 +29,41 @@
             <button type="button" role="radio" aria-checked="@(CaiDat.Hien.ChuDe == ChuDe.Toi ? "true" : "false")" class="@(CaiDat.Hien.ChuDe == ChuDe.Toi ? "chon tab" : "")" @onclick="@(() => DoiChuDe(ChuDe.Toi))">🌙 Tối</button>
         </div>
     </section>
-    @* ===== Nhắc ghi chi tiêu ===== *@
+
+    @* ===== Hồ sơ quản trị ===== *@
     <section class="the lan-luot" style="--i:1">
+        <div class="the-tieu-de"><h2>Hồ sơ quản trị</h2></div>
+        <p class="chu-phu" style="margin-bottom:12px">
+            Giúp quản trị viên biết ai đang dùng ứng dụng. Mặc định quản trị viên chỉ thấy mã bot:
+            <b>@(_hsBot ?? "đang tạo…")</b>
+        </p>
+
+        <div class="truong" style="margin-bottom:12px">
+            <label for="hs-ten">Tên của bạn (không bắt buộc)</label>
+            <input id="hs-ten" class="o-nhap" type="text" maxlength="40" autocomplete="off"
+                   placeholder="Ví dụ: Lê Vương" @bind="_hsTen" @bind:event="oninput" />
+        </div>
+
+        <label class="hang-nap" style="align-items:flex-start;gap:10px;margin-bottom:8px">
+            <input type="checkbox" checked="@_hsDongYTen" @onchange="DoiDongYTen" style="margin-top:4px" />
+            <span>Đồng ý cho quản trị viên thấy tên trên và xem lượt dùng từng tính năng của tôi. Không có số tiền hay ghi chú.</span>
+        </label>
+
+        <label class="hang-nap" style="align-items:flex-start;gap:10px;margin-bottom:8px">
+            <input type="checkbox" checked="@_hsDongYTyLe" @onchange="DoiDongYTyLe" style="margin-top:4px" />
+            <span>Đồng ý chia sẻ tỷ lệ chi tiêu theo danh mục trong 30 ngày (chỉ phần trăm, không có số tiền).</span>
+        </label>
+
+        @if (!string.IsNullOrEmpty(_hsLoi))
+        {
+            <p class="loi" role="alert">@_hsLoi</p>
+        }
+
+        <button type="button" class="nut nut-chinh nut-tran" style="margin-top:8px" @onclick="LuuHoSoAsync">Lưu hồ sơ</button>
+    </section>
+
+    @* ===== Nhắc ghi chi tiêu ===== *@
+    <section class="the lan-luot" style="--i:2">
         <div class="the-tieu-de"><h2>Nhắc ghi chi tiêu</h2></div>
         <p class="chu-phu" style="margin-bottom:12px">
             Mỗi tối 21:00 máy sẽ hiện một thông báo nhắc. Thông báo không chứa số liệu chi tiêu.
@@ -47,8 +81,9 @@
             <p class="loi" role="alert">@_loiNhac</p>
         }
     </section>
+
     @* ===== Sao lưu ===== *@
-    <section class="the lan-luot" style="--i:1">
+    <section class="the lan-luot" style="--i:3">
         <div class="the-tieu-de"><h2>Sao lưu dữ liệu</h2></div>
         <p class="chu-phu" style="margin-bottom:12px">
             Dữ liệu chỉ nằm trong điện thoại này. Hãy sao lưu định kỳ để không mất khi đổi máy hoặc xóa dữ liệu Safari.
@@ -95,7 +130,7 @@
     </section>
 
     @* ===== AI ===== *@
-    <section class="the lan-luot" style="--i:2">
+    <section class="the lan-luot" style="--i:4">
         <div class="the-tieu-de"><h2>Trợ lý AI (tùy chọn)</h2></div>
         <p class="chu-phu" style="margin-bottom:12px">
             Không bắt buộc. Khi bật, câu nhập khó hiểu sẽ được gửi thẳng từ máy bạn tới Google Gemini để phân tích.
@@ -124,7 +159,7 @@
     </section>
 
     @* ===== Từ khóa đã học ===== *@
-    <section class="the lan-luot" style="--i:3">
+    <section class="the lan-luot" style="--i:5">
         <div class="the-tieu-de"><h2>Từ khóa đã học</h2></div>
         <p class="chu-phu" style="margin-bottom:12px">Khi bạn sửa danh mục của một khoản, ứng dụng nhớ để lần sau tự chọn đúng.</p>
         @if (Kho.DsTuKhoaHoc.Count == 0)
@@ -145,7 +180,7 @@
     </section>
 
     @* ===== Danh mục & từ khóa ===== *@
-    <section class="the lan-luot" style="--i:4">
+    <section class="the lan-luot" style="--i:6">
         <div class="the-tieu-de"><h2>Danh mục & từ khóa</h2></div>
         <p class="chu-phu" style="margin-bottom:12px">Chạm vào một danh mục để sửa từ khóa dùng để đoán khi gõ nhanh. Ngăn cách bằng dấu phẩy.</p>
         <div style="display:flex;flex-direction:column;gap:8px">
@@ -168,7 +203,7 @@
         </div>
     </section>
 
-    <section class="the lan-luot" style="--i:5">
+    <section class="the lan-luot" style="--i:7">
         <div class="the-tieu-de"><h2>Về ứng dụng</h2></div>
         <p class="chu-phu">Sổ chi tiêu cá nhân · dữ liệu lưu ngay trên máy, dùng được khi không có mạng.</p>
         @if (!string.IsNullOrEmpty(_dungLuong))
@@ -262,6 +297,11 @@
     private string _aiMa = "";
     private bool _tatAm;
 
+    // Hồ sơ quản trị
+    private string _hsTen = "";
+    private bool _hsDongYTen, _hsDongYTyLe;
+    private string? _hsBot, _hsLoi;
+
     private DanhMuc? _suaDm;
     private string _tuKhoaText = "";
 
@@ -289,6 +329,17 @@
 
         try
         {
+            var t = await HoSo.LayAsync();
+            _hsTen = t.Ten ?? "";
+            _hsDongYTen = t.DongYTen;
+            _hsDongYTyLe = t.DongYTyLe;
+            _hsBot = t.Bot;
+            StateHasChanged();
+        }
+        catch { }
+
+        try
+        {
             var json = await Js.InvokeAsync<string>("chitieuDb.uocLuong");
             if (!string.IsNullOrEmpty(json))
             {
@@ -303,6 +354,31 @@
 
     // ---------- Giao diện ----------
     private Task DoiChuDe(ChuDe c) => AnToanAsync(() => CaiDat.DatChuDeAsync(c));
+
+    // ---------- Hồ sơ quản trị ----------
+    private void DoiDongYTen(ChangeEventArgs e) => _hsDongYTen = e.Value is bool b && b;
+    private void DoiDongYTyLe(ChangeEventArgs e) => _hsDongYTyLe = e.Value is bool b && b;
+
+    private async Task LuuHoSoAsync()
+    {
+        _hsLoi = null;
+        var ten = (_hsTen ?? "").Trim();
+        if (_hsDongYTen && ten.Length == 0)
+        {
+            _hsLoi = "Hãy nhập tên, hoặc bỏ tick đồng ý dùng tên.";
+            return;
+        }
+        try
+        {
+            await HoSo.LuuAsync(ten, _hsDongYTen, _hsDongYTyLe);
+            await HoSo.DongBoAsync();
+            Bao.Xong("Đã lưu hồ sơ");
+        }
+        catch (Exception)
+        {
+            _hsLoi = "Không lưu được hồ sơ. Hãy thử lại.";
+        }
+    }
 
     // ---------- Nhắc ghi chi tiêu ----------
     private async Task DoiNhac(ChangeEventArgs e)
