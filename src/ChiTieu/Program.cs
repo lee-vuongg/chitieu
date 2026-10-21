@@ -41,5 +41,6 @@ builder.Services.AddScoped<PhanHoi>();
 builder.Services.AddScoped<ThongBao>();
 builder.Services.AddScoped<AmThanh>();
 builder.Services.AddScoped<SuKienService>();
+builder.Services.AddScoped<HoSoService>();
 
 await builder.Build().RunAsync();
