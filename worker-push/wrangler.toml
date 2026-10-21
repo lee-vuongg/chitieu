@@ -1,0 +1,17 @@
+name = "chitieu-nhac"
+main = "push-worker.js"
+compatibility_date = "2025-01-01"
+
+# Chỉ trang này được phép đăng ký thông báo
+[vars]
+ALLOWED_ORIGIN = "https://chitieu-ewf.pages.dev"
+VAPID_SUBJECT = "mailto:ban@example.com"
+VAPID_PUBLIC = "BBObXAWSK7WQq3lHNtn64lNs7v5pmiwQEJvc-mNzT-5fAyq3ON_t_BymOfBV_FMQO0RO3F-MOjXp3S1f7F2t86s"
+
+[[kv_namespaces]]
+binding = "SUBS"
+id = "8d751be3e9d84cb284e720a692a4a30c"
+
+# 14:00 UTC = 21:00 giờ Việt Nam (UTC+7, không có giờ mùa hè)
+[triggers]
+crons = ["0 14 * * *"]
