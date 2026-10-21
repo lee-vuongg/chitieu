@@ -5,8 +5,8 @@ compatibility_date = "2025-01-01"
 # Chỉ trang này được phép đăng ký thông báo
 [vars]
 ALLOWED_ORIGIN = "https://chitieu-ewf.pages.dev"
-VAPID_SUBJECT = "mailto:ban@example.com"
-VAPID_PUBLIC = "BBObXAWSK7WQq3lHNtn64lNs7v5pmiwQEJvc-mNzT-5fAyq3ON_t_BymOfBV_FMQO0RO3F-MOjXp3S1f7F2t86s"
+VAPID_SUBJECT = "mailto:lequocvuowng123@gmail.com"
+VAPID_PUBLIC = "BJXAsLtvhe5UJTDkYOQNXWxSMmOdHxhn1eZ3ETxvNAdDGSncdB5YLjp9SW8dtoGstCK7looXPzM_wcFxFwrMDKU"
 
 [[kv_namespaces]]
 binding = "SUBS"

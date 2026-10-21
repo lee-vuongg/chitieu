@@ -1,7 +1,7 @@
 // push.js: bật/tắt nhắc chi tiêu hằng ngày. Đặt trong src/ChiTieu/wwwroot/js/
 window.chiTieuPush = (() => {
     // Phải giống hệt VAPID_PUBLIC trong wrangler.toml của worker-push
-    const VAPID_PUBLIC = 'BBObXAWSK7WQq3lHNtn64lNs7v5pmiwQEJvc-mNzT-5fAyq3ON_t_BymOfBV_FMQO0RO3F-MOjXp3S1f7F2t86s';
+    const VAPID_PUBLIC = 'BJXAsLtvhe5UJTDkYOQNXWxSMmOdHxhn1eZ3ETxvNAdDGSncdB5YLjp9SW8dtoGstCK7looXPzM_wcFxFwrMDKU';
     // Địa chỉ Worker push
     const WORKER = 'https://chitieu-nhac.liguowang-apps.workers.dev';
 

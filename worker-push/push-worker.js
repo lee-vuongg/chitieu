@@ -31,6 +31,7 @@ async function taoJwt(aud, env) {
     return `${noiDung}.${b64u(chuKy)}`;
 }
 
+// Trả về { status, noiDung } để ghi log đầy đủ khi có lỗi
 async function guiNhac(endpoint, env) {
     const jwt = await taoJwt(new URL(endpoint).origin, env);
     const res = await fetch(endpoint, {
@@ -40,27 +41,45 @@ async function guiNhac(endpoint, env) {
             Authorization: `vapid t=${jwt}, k=${env.VAPID_PUBLIC}`
         }
     });
-    return res.status;
+    let noiDung = '';
+    if (res.status !== 201) {
+        try { noiDung = await res.text(); } catch { /* bỏ qua */ }
+    }
+    return { status: res.status, noiDung };
 }
 
 async function guiTatCa(env) {
+    let tong = 0, thanhCong = 0, loi = 0, xoa = 0;
     let cursor;
     do {
         const ds = await env.SUBS.list({ prefix: 'sub:', cursor });
         for (const k of ds.keys) {
             const raw = await env.SUBS.get(k.name);
             if (!raw) continue;
+            tong++;
             const { endpoint } = JSON.parse(raw);
             try {
-                const status = await guiNhac(endpoint, env);
-                // 404/410: thiết bị đã gỡ đăng ký hoặc xóa app, bỏ khỏi danh sách
-                if (status === 404 || status === 410) await env.SUBS.delete(k.name);
+                const { status, noiDung } = await guiNhac(endpoint, env);
+                if (status === 201) {
+                    thanhCong++;
+                    console.log('Gửi thành công:', endpoint.slice(0, 50));
+                } else {
+                    loi++;
+                    console.log('Apple trả về mã:', status, noiDung, endpoint.slice(0, 50));
+                    // 404/410: thiết bị đã gỡ đăng ký hoặc xóa app, bỏ khỏi danh sách
+                    if (status === 404 || status === 410) {
+                        await env.SUBS.delete(k.name);
+                        xoa++;
+                    }
+                }
             } catch (e) {
+                loi++;
                 console.log('Lỗi gửi thông báo:', e.message);
             }
         }
         cursor = ds.list_complete ? undefined : ds.cursor;
     } while (cursor);
+    console.log(`Tổng kết: ${tong} thiết bị, ${thanhCong} thành công, ${loi} lỗi, ${xoa} đã xóa`);
 }
 
 export default {
