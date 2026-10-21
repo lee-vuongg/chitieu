@@ -27,7 +27,21 @@
             <button type="button" role="radio" aria-checked="@(CaiDat.Hien.ChuDe == ChuDe.Toi ? "true" : "false")" class="@(CaiDat.Hien.ChuDe == ChuDe.Toi ? "chon tab" : "")" @onclick="@(() => DoiChuDe(ChuDe.Toi))">🌙 Tối</button>
         </div>
     </section>
-
+    @* ===== Nhắc ghi chi tiêu ===== *@
+    <section class="the lan-luot" style="--i:1">
+        <div class="the-tieu-de"><h2>Nhắc ghi chi tiêu</h2></div>
+        <p class="chu-phu" style="margin-bottom:12px">
+            Mỗi tối 21:00 máy sẽ hiện một thông báo nhắc. Thông báo không chứa số liệu chi tiêu.
+        </p>
+        <label class="hang-nap" style="align-items:center">
+            <span>Bật nhắc hằng ngày</span>
+            <input type="checkbox" checked="@_nhac" @onchange="DoiNhac" />
+        </label>
+        @if (!string.IsNullOrEmpty(_loiNhac))
+        {
+            <p class="loi" role="alert">@_loiNhac</p>
+        }
+    </section>
     @* ===== Sao lưu ===== *@
     <section class="the lan-luot" style="--i:1">
         <div class="the-tieu-de"><h2>Sao lưu dữ liệu</h2></div>
