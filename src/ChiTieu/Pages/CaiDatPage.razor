@@ -237,7 +237,8 @@
     private bool _dangXuat, _dangNhap, _xacNhanGhiDe;
     private string? _loiBackup, _loiAi, _loiDm, _dungLuong;
     private BackupData? _file;
-
+    private bool _nhac;
+    private string? _loiNhac;
     private string _aiMa = "";
 
     private DanhMuc? _suaDm;
@@ -258,6 +259,10 @@
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (!firstRender) return;
+
+        try { _nhac = await Js.InvokeAsync<bool>("chiTieuPush.dang"); StateHasChanged(); }
+        catch { }
+
         try
         {
             var json = await Js.InvokeAsync<string>("chitieuDb.uocLuong");
@@ -274,7 +279,30 @@
 
     // ---------- Giao diện ----------
     private Task DoiChuDe(ChuDe c) => AnToanAsync(() => CaiDat.DatChuDeAsync(c));
-
+    private async Task DoiNhac(ChangeEventArgs e)
+    {
+        _loiNhac = null;
+        var muon = e.Value is bool b && b;
+        try
+        {
+            if (muon)
+            {
+                var kq = await Js.InvokeAsync<PushKq>("chiTieuPush.bat");
+                _nhac = kq.Ok;
+                _loiNhac = kq.Loi;
+            }
+            else
+            {
+                await Js.InvokeVoidAsync("chiTieuPush.tat");
+                _nhac = false;
+            }
+        }
+        catch (Exception)
+        {
+            _nhac = false;
+            _loiNhac = "Không bật được nhắc. Hãy thử lại.";
+        }
+    }
     // ---------- Sao lưu ----------
     private async Task XuatBackup()
     {
