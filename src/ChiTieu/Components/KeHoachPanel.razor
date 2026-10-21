@@ -1,0 +1,112 @@
+@inject AiService Ai
+@inject KhoDuLieu Kho
+@inject DongHo DongHo
+
+<div class="the">
+    <div class="the-tieu-de"><h2>Kế hoạch chi tiêu (AI)</h2></div>
+    <div class="truong">
+        <select class="o-nhap" @bind="_loai">
+            <option value="@KhoangBaoCao.Tuan">Tuần này</option>
+            <option value="@KhoangBaoCao.Thang">Tháng này</option>
+            <option value="@KhoangBaoCao.TuyChon">Tùy chọn</option>
+        </select>
+
+        @if (_loai == KhoangBaoCao.TuyChon)
+        {
+            <input class="o-nhap" type="date" value="@_tuChuoi" @onchange="DoiTu" />
+            <input class="o-nhap" type="date" value="@_denChuoi" @onchange="DoiDen" />
+        }
+
+        <textarea class="o-nhap" @bind="_ghiChu"
+                  placeholder="Tùy chọn: ví dụ tháng này có đám cưới, muốn tiết kiệm thêm"></textarea>
+
+        <button class="nut nut-chinh nut-tran" @onclick="LapAsync" disabled="@_dang">
+            @(_dang ? "Đang lập kế hoạch..." : "Lập kế hoạch")
+        </button>
+
+        @if (_loi != null)
+        {
+            <p class="loi">@_loi</p>
+        }
+    </div>
+
+    @if (_kq != null)
+    {
+        <div class="xem-truoc">
+            @if (!string.IsNullOrWhiteSpace(_kq.TomTat))
+            {
+                <p>@_kq.TomTat</p>
+            }
+
+            <h3>Hạn mức đề xuất</h3>
+            @foreach (var h in _kq.HanMuc ?? new List<AiHanMuc>())
+            {
+                <div class="hang-nap">
+                    <span>@Kho.TenDanhMuc(h.DanhMucId)</span>
+                    <span class="dam">@Tien(h.SoTien)</span>
+                </div>
+                @if (!string.IsNullOrWhiteSpace(h.GhiChu))
+                {
+                    <p class="tro-giup">@h.GhiChu</p>
+                }
+            }
+
+            @if (_kq.LoiKhuyen is { Count: > 0 })
+            {
+                <h3>Lời khuyên</h3>
+                <ul>
+                    @foreach (var l in _kq.LoiKhuyen)
+                    {
+                        <li>@l</li>
+                    }
+                </ul>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private string _loai = KhoangBaoCao.Thang;
+    private string _tuChuoi = DateTime.Today.AddDays(-30).ToString("yyyy-MM-dd");
+    private string _denChuoi = DateTime.Today.ToString("yyyy-MM-dd");
+    private string _ghiChu = "";
+    private bool _dang;
+    private string? _loi;
+    private AiKeHoach? _kq;
+    private void DoiTu(ChangeEventArgs e) => _tuChuoi = e.Value?.ToString() ?? "";
+    private void DoiDen(ChangeEventArgs e) => _denChuoi = e.Value?.ToString() ?? "";
+    private async Task LapAsync()
+    {
+        _loi = null;
+        _kq = null;
+        DateOnly? tuChon = null, denChon = null;
+
+        if (_loai == KhoangBaoCao.TuyChon)
+        {
+            if (!DateOnly.TryParse(_tuChuoi, out var a) || !DateOnly.TryParse(_denChuoi, out var b))
+            {
+                _loi = "Hãy chọn ngày bắt đầu và ngày kết thúc.";
+                return;
+            }
+            tuChon = a;
+            denChon = b;
+        }
+
+        var (tu, den) = KhoangBaoCao.Tinh(_loai, DongHo.HomNay, tuChon, denChon);
+
+        _dang = true;
+        try
+        {
+            var kq = await Ai.KeHoachAsync(tu, den, _ghiChu);
+            if (kq.Ok) _kq = kq.Data;
+            else _loi = kq.Loi ?? "Chưa lập được kế hoạch. Hãy thử lại.";
+        }
+        finally
+        {
+            _dang = false;
+        }
+    }
+
+    private static string Tien(long n) =>
+        n.ToString("#,0", System.Globalization.CultureInfo.InvariantCulture).Replace(',', '.') + " đ";
+}

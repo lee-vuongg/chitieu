@@ -423,3 +423,60 @@ select.o-nhap { appearance: none; -webkit-appearance: none; }
 .thu-chi .so {
     font-size: clamp(15px, 4.6vw, 22px);
 }
+/* ===== Trang báo cáo ===== */
+.bao-cao .the {
+    width: 100%;
+}
+
+.bao-cao .truong {
+    gap: 10px;
+}
+
+.bao-cao .o-nhap {
+    font-size: 17px;
+}
+
+.bao-cao textarea.o-nhap {
+    min-height: 96px;
+}
+
+.bao-cao .loi {
+    word-break: break-word;
+}
+
+.bao-cao .xem-truoc {
+    font-size: 16px;
+}
+
+    .bao-cao .xem-truoc ul {
+        margin: 6px 0 0 18px;
+        padding: 0;
+    }
+
+    .bao-cao .xem-truoc li {
+        margin: 4px 0;
+        line-height: 1.4;
+    }
+
+.bao-cao .hang-nap {
+    font-size: 16px;
+}
+
+    .bao-cao .hang-nap span:first-child {
+        min-width: 0;
+        overflow-wrap: anywhere;
+    }
+
+@media (max-width: 400px) {
+    .bao-cao .the {
+        padding: 16px;
+    }
+
+    .bao-cao .dau-trang h1 {
+        font-size: 24px;
+    }
+
+    .bao-cao .o-nhap {
+        font-size: 16px;
+    }
+}

@@ -1,0 +1,93 @@
+@inject IJSRuntime JS
+@inject KhoDuLieu Kho
+@inject DongHo DongHo
+
+<div class="the">
+    <div class="the-tieu-de"><h2>Xuất báo cáo PDF</h2></div>
+    <div class="truong">
+        <select class="o-nhap" @bind="_loai">
+            <option value="@KhoangBaoCao.Tuan">Tuần này</option>
+            <option value="@KhoangBaoCao.Thang">Tháng này</option>
+            <option value="@KhoangBaoCao.TuyChon">Tùy chọn</option>
+        </select>
+
+        @if (_loai == KhoangBaoCao.TuyChon)
+        {
+            <input class="o-nhap" type="date" value="@_tuChuoi" @onchange="DoiTu" />
+            <input class="o-nhap" type="date" value="@_denChuoi" @onchange="DoiDen" />
+        }
+
+        <button class="nut nut-chinh nut-tran" @onclick="XuatAsync" disabled="@_dang">Xuất PDF</button>
+
+        @if (_loi != null)
+        {
+            <p class="loi">@_loi</p>
+        }
+    </div>
+</div>
+
+@code {
+    private string _loai = KhoangBaoCao.Thang;
+    private string _tuChuoi = DateTime.Today.AddDays(-30).ToString("yyyy-MM-dd");
+    private string _denChuoi = DateTime.Today.ToString("yyyy-MM-dd");
+    private bool _dang;
+    private string? _loi;
+    private void DoiTu(ChangeEventArgs e) => _tuChuoi = e.Value?.ToString() ?? "";
+    private void DoiDen(ChangeEventArgs e) => _denChuoi = e.Value?.ToString() ?? "";
+    private async Task XuatAsync()
+    {
+        _loi = null;
+        DateOnly? tuChon = null, denChon = null;
+
+        if (_loai == KhoangBaoCao.TuyChon)
+        {
+            if (!DateOnly.TryParse(_tuChuoi, out var a) || !DateOnly.TryParse(_denChuoi, out var b))
+            {
+                _loi = "Hãy chọn ngày bắt đầu và ngày kết thúc.";
+                return;
+            }
+            tuChon = a;
+            denChon = b;
+        }
+
+        var (tu, den) = KhoangBaoCao.Tinh(_loai, DongHo.HomNay, tuChon, denChon);
+
+        // Chỉ gửi các trường cần cho báo cáo, không gửi mã nội bộ
+        var giaoDich = Kho.DsGiaoDich
+            .Where(g => g.Ngay >= tu && g.Ngay <= den)
+            .OrderBy(g => g.Ngay)
+            .Select(g => new
+            {
+                ngay = g.Ngay.ToString("yyyy-MM-dd"),
+                danhMuc = Kho.TenDanhMuc(g.DanhMucId),
+                ghiChu = g.GhiChu,
+                soTien = g.SoTien,
+                loai = g.Loai == LoaiGiaoDich.Thu ? "thu" : "chi"
+            })
+            .ToList();
+
+        _dang = true;
+        try
+        {
+            await JS.InvokeVoidAsync("chiTieuBaoCao.inPDF", new
+            {
+                tieuDe = "Báo cáo thu chi",
+                tu = tu.ToString("yyyy-MM-dd"),
+                den = den.ToString("yyyy-MM-dd"),
+                giaoDich
+            });
+        }
+        catch (JSException e)
+        {
+            _loi = "Lỗi: " + e.Message;
+        }
+        catch (Exception e)
+        {
+            _loi = "Không mở được báo cáo: " + e.Message;
+        }
+        finally
+        {
+            _dang = false;
+        }
+    }
+}

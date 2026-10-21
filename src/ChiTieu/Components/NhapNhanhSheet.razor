@@ -51,13 +51,12 @@
 
                 @if (_tab == "nhanh" && !DangSua)
                 {
-                    <div class="truong">
-                        <label for="o-cau">Gõ câu như nói chuyện</label>
+                    <div style="display:flex; gap:10px; align-items:center;">
                         <input id="o-cau" @ref="_oCau" class="o-nhap" type="text" enterkeyhint="done" autocomplete="off"
                                autocapitalize="none" autocorrect="off" spellcheck="false"
-                               placeholder="Ví dụ: ăn phở 50k"
+                               placeholder="Ví dụ: ăn phở 50k" style="flex:1; min-width:0;"
                                @bind="Cau" @bind:event="oninput" @onkeydown="PhimCau" />
-                        <span class="tro-giup">Ví dụ: “đổ xăng 80 nghìn”, “lương 10tr”, “hôm qua cà phê 35k”</span>
+                        <MicButton OnText="@(t => Cau = t)" />
                     </div>
 
                     @if (_kq?.SoTien is > 0)

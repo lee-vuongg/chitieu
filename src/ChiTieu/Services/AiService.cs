@@ -159,4 +159,75 @@ public class AiService
             return (false, null, AiCore.TaoMaLoiThanThien(null));
         }
     }
+    /// <summary>Lập kế hoạch chi tiêu cho khoảng ngày. Chỉ gửi số liệu tổng hợp theo danh mục.</summary>
+    public async Task<KetQuaAi<AiKeHoach>> KeHoachAsync(DateOnly tu, DateOnly den, string? ghiChu)
+    {
+        if (!DaCauHinh) return new(false, null, "Chưa cài AI. Vào Cài đặt để nhập mã AI.");
+        if (!await CoMangAsync()) return new(false, null, "Đang mất mạng nên chưa lập kế hoạch được.");
+
+        var soNgay = Math.Max(1, den.DayNumber - tu.DayNumber + 1);
+        var trongKhoang = _kho.DsGiaoDich.Where(g => g.Ngay >= tu && g.Ngay <= den).ToList();
+
+        var thu = trongKhoang.Where(g => g.Loai == LoaiGiaoDich.Thu).Sum(g => g.SoTien);
+        var chiTheoDm = trongKhoang
+            .Where(g => g.Loai == LoaiGiaoDich.Chi)
+            .GroupBy(g => g.DanhMucId)
+            .Select(gr => new { danhMuc = _kho.TenDanhMuc(gr.Key), tong = gr.Sum(x => x.SoTien) })
+            .OrderByDescending(x => x.tong)
+            .ToList();
+        var chi = chiTheoDm.Sum(x => x.tong);
+
+        var hanMuc = _kho.DsNganSach
+            .Select(n => new { danhMucId = n.DanhMucId, tenDanhMuc = _kho.TenDanhMuc(n.DanhMucId), hanMucThang = n.HanMuc })
+            .ToList();
+
+        var ghi = (ghiChu ?? "").Trim();
+        if (ghi.Length > 300) ghi = ghi[..300];
+
+        var prompt = "Bạn là trợ lý lập kế hoạch chi tiêu cho một người lớn tuổi, viết bằng tiếng Việt, ngắn gọn, dễ hiểu.\n" +
+                     $"Khoảng thời gian: {tu:dd/MM/yyyy} đến {den:dd/MM/yyyy} ({soNgay} ngày).\n" +
+                     $"Tổng thu: {thu} đ. Tổng chi: {chi} đ.\n" +
+                     $"Chi theo danh mục: {System.Text.Json.JsonSerializer.Serialize(chiTheoDm, JsonCfg.Opt)}\n" +
+                     $"Hạn mức đã đặt (theo tháng): {System.Text.Json.JsonSerializer.Serialize(hanMuc, JsonCfg.Opt)}\n" +
+                     "Hãy đề xuất hạn mức chi cho từng danh mục trong khoảng này, tóm tắt ngắn, và 2 đến 3 lời khuyên." +
+                     (ghi.Length > 0 ? $"\nNgười dùng dặn thêm: \"{ghi}\"" : "");
+
+        var schema = new
+        {
+            type = "OBJECT",
+            properties = new
+            {
+                tomTat = new { type = "STRING" },
+                hanMuc = new
+                {
+                    type = "ARRAY",
+                    items = new
+                    {
+                        type = "OBJECT",
+                        properties = new
+                        {
+                            danhMucId = new { type = "STRING" },
+                            soTien = new { type = "INTEGER" },
+                            ghiChu = new { type = "STRING" }
+                        }
+                    }
+                },
+                loiKhuyen = new { type = "ARRAY", items = new { type = "STRING" } }
+            }
+        };
+
+        var (ok, json, loi) = await GoiAsync(prompt, schema, 30);
+        if (!ok) return new(false, null, loi);
+
+        try
+        {
+            var kq = System.Text.Json.JsonSerializer.Deserialize<AiKeHoach>(json ?? "", JsonCfg.Opt);
+            if (kq == null) return new(false, null, "AI chưa trả lời được. Hãy thử lại.");
+            return new(true, kq, null);
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            return new(false, null, "AI trả lời không đúng định dạng. Hãy thử lại.");
+        }
+    }
 }

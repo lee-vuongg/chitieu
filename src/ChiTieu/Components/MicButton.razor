@@ -1,0 +1,66 @@
+@inject IJSRuntime JS
+@implements IAsyncDisposable
+
+<button type="button" class="nut-mic @(_dangNghe ? "dang-nghe" : "")"
+        @onclick="BatAsync" disabled="@(!_coHoTro)"
+        aria-label="Nói để nhập chi tiêu">🎤</button>
+
+@if (_loi != null)
+{
+    <p class="tro-giup loi-mic">@_loi</p>
+}
+
+@code {
+    /// <summary>Nhận chữ người dùng vừa nói. Cha gán vào ô nhập.</summary>
+    [Parameter] public EventCallback<string> OnText { get; set; }
+
+    private DotNetObjectReference<MicButton>? _ref;
+    private bool _dangNghe;
+    private bool _coHoTro = true;
+    private string? _loi;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        _ref = DotNetObjectReference.Create(this);
+        try { _coHoTro = await JS.InvokeAsync<bool>("chiTieuVoice.coHoTro"); }
+        catch { _coHoTro = false; }
+        StateHasChanged();
+    }
+
+    private async Task BatAsync()
+    {
+        _loi = null;
+        _dangNghe = true;
+        await JS.InvokeVoidAsync("chiTieuVoice.batDau", _ref);
+    }
+
+    [JSInvokable]
+    public async Task NhanKetQua(string text, bool laKetQuaCuoi)
+    {
+        if (!string.IsNullOrWhiteSpace(text))
+            await OnText.InvokeAsync(text);
+        await InvokeAsync(StateHasChanged);
+    }
+
+    [JSInvokable]
+    public Task NhanLoi(string thongBao)
+    {
+        _dangNghe = false;
+        _loi = thongBao;
+        return InvokeAsync(StateHasChanged);
+    }
+
+    [JSInvokable]
+    public Task KetThuc()
+    {
+        _dangNghe = false;
+        return InvokeAsync(StateHasChanged);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        try { await JS.InvokeVoidAsync("chiTieuVoice.dung"); } catch { }
+        _ref?.Dispose();
+    }
+}
