@@ -4,6 +4,7 @@
 @inject CaiDatService CaiDat
 @inject DongHo Dong
 @inject SheetService Sheet
+@inject SuKienService SuKien
 
 <MudThemeProvider Theme="_theme" IsDarkMode="@CaiDat.DangToi" />
 <MudPopoverProvider />
@@ -39,28 +40,28 @@ else
 
 @code {
     private readonly MudTheme _theme = new()
-    {
-        PaletteLight = new PaletteLight
         {
-            Primary = "#1D2430",
-            Background = "#F4F0E6",
-            Surface = "#FFFDF8",
-            TextPrimary = "#1D2430",
-            Success = "#17803F",
-            Warning = "#F2B01E",
-            Error = "#D0312B"
-        },
-        PaletteDark = new PaletteDark
-        {
-            Primary = "#F1EEE6",
-            Background = "#12161B",
-            Surface = "#1B2128",
-            TextPrimary = "#F1EEE6",
-            Success = "#4CD187",
-            Warning = "#F2B01E",
-            Error = "#FF6B63"
-        }
-    };
+            PaletteLight = new PaletteLight
+            {
+                Primary = "#1D2430",
+                Background = "#F4F0E6",
+                Surface = "#FFFDF8",
+                TextPrimary = "#1D2430",
+                Success = "#17803F",
+                Warning = "#F2B01E",
+                Error = "#D0312B"
+            },
+            PaletteDark = new PaletteDark
+            {
+                Primary = "#F1EEE6",
+                Background = "#12161B",
+                Surface = "#1B2128",
+                TextPrimary = "#F1EEE6",
+                Success = "#4CD187",
+                Warning = "#F2B01E",
+                Error = "#FF6B63"
+            }
+        };
 
     protected override async Task OnInitializedAsync()
     {
@@ -68,9 +69,11 @@ else
         CaiDat.GiaoDienDoi += Doi;
         Sheet.Doi += Doi;
 
-        await Dong.KhoiTaoAsync();     // lấy múi giờ trình duyệt để "hôm nay" đúng
-        await Kho.TaiAsync();          // đọc IndexedDB
+        await Dong.KhoiTaoAsync();           // lấy múi giờ trình duyệt để "hôm nay" đúng
+        await Kho.TaiAsync();                // đọc IndexedDB
         await CaiDat.KhoiTaoGiaoDienAsync(); // áp dụng sáng/tối
+
+        await SuKien.GhiAsync("mo_app");     // thống kê ẩn danh: chỉ đếm lượt mở app
     }
 
     private async Task ThuLai()

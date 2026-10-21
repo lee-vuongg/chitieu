@@ -1,0 +1,11 @@
+name = "chitieu-thongke"
+main = "stats-worker.js"
+compatibility_date = "2025-01-01"
+
+[vars]
+ALLOWED_ORIGIN = "https://chitieu-ewf.pages.dev"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "chitieu-thong-ke"
+database_id = "671c3959-2eb7-4158-967c-20e1e7343091"

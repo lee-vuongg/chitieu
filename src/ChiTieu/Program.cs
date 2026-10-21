@@ -40,5 +40,6 @@ builder.Services.AddScoped<SheetService>();
 builder.Services.AddScoped<PhanHoi>();
 builder.Services.AddScoped<ThongBao>();
 builder.Services.AddScoped<AmThanh>();
+builder.Services.AddScoped<SuKienService>();
 
 await builder.Build().RunAsync();
