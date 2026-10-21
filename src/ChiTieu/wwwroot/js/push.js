@@ -1,9 +1,9 @@
 // push.js: bật/tắt nhắc chi tiêu hằng ngày. Đặt trong src/ChiTieu/wwwroot/js/
 window.chiTieuPush = (() => {
-    // Thay bằng VAPID_PUBLIC đã tạo ở bước sinh khóa (phải khớp với Worker)
+    // Phải giống hệt VAPID_PUBLIC trong wrangler.toml của worker-push
     const VAPID_PUBLIC = 'BBObXAWSK7WQq3lHNtn64lNs7v5pmiwQEJvc-mNzT-5fAyq3ON_t_BymOfBV_FMQO0RO3F-MOjXp3S1f7F2t86s';
-    // Thay bằng địa chỉ Worker sau khi deploy
-  const WORKER = 'https://chitieu-nhac.liguowang-apps.workers.dev';
+    // Địa chỉ Worker push
+    const WORKER = 'https://chitieu-nhac.liguowang-apps.workers.dev';
 
     function coHoTro() {
         return 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
@@ -22,6 +22,14 @@ window.chiTieuPush = (() => {
         return !!(await reg.pushManager.getSubscription());
     }
 
+    async function guiLenWorker(duong, endpoint) {
+        return fetch(WORKER + duong, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ endpoint })
+        });
+    }
+
     // Phải được gọi từ thao tác bấm của người dùng (iOS yêu cầu điều này)
     async function bat() {
         if (!coHoTro()) {
@@ -33,19 +41,20 @@ window.chiTieuPush = (() => {
         }
 
         const reg = await navigator.serviceWorker.ready;
-        let sub = await reg.pushManager.getSubscription();
-        if (!sub) {
-            sub = await reg.pushManager.subscribe({
-                userVisibleOnly: true,
-                applicationServerKey: doiKhoa(VAPID_PUBLIC)
-            });
+
+        // Đăng ký cũ có thể được tạo bằng khóa VAPID cũ, nên hủy đi và đăng ký lại bằng khóa hiện tại
+        const cu = await reg.pushManager.getSubscription();
+        if (cu) {
+            try { await guiLenWorker('/unsubscribe', cu.endpoint); } catch { /* bỏ qua */ }
+            await cu.unsubscribe();
         }
 
-        const res = await fetch(WORKER + '/subscribe', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ endpoint: sub.endpoint })
+        const sub = await reg.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: doiKhoa(VAPID_PUBLIC)
         });
+
+        const res = await guiLenWorker('/subscribe', sub.endpoint);
         if (!res.ok) {
             return { ok: false, loi: 'Không lưu được đăng ký nhắc. Hãy thử lại sau.' };
         }
@@ -57,13 +66,7 @@ window.chiTieuPush = (() => {
         const reg = await navigator.serviceWorker.ready;
         const sub = await reg.pushManager.getSubscription();
         if (!sub) return true;
-        try {
-            await fetch(WORKER + '/unsubscribe', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ endpoint: sub.endpoint })
-            });
-        } catch { /* vẫn hủy đăng ký trên máy */ }
+        try { await guiLenWorker('/unsubscribe', sub.endpoint); } catch { /* vẫn hủy đăng ký trên máy */ }
         await sub.unsubscribe();
         return true;
     }
