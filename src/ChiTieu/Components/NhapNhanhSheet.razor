@@ -6,6 +6,7 @@
 @inject ThongBao Bao
 @inject PhanHoi Rung
 @inject DongHo Dong
+@inject AmThanh Am
 
 @if (Sheet.Mo)
 {
@@ -165,9 +166,18 @@
                 @if (_tab == "nhanh" && !DangSua)
                 {
                     <button type="button" class="nut nut-chinh nut-tran" disabled="@(_dangLuu || _kq?.SoTien is not > 0)" @onclick="LuuNhanhAsync">
-                        @if (_dangHoiAi) { <span>Đang nhờ AI hiểu giúp…</span> }
-                        else if (_kq?.SoTien is > 0) { <span>Lưu @DinhDang.Tien(_kq.SoTien.Value)</span> }
-                        else { <span>Lưu</span> }
+                        @if (_dangHoiAi)
+                        {
+                            <span>Đang nhờ AI hiểu giúp…</span>
+                        }
+                        else if (_kq?.SoTien is > 0)
+                        {
+                            <span>Lưu @DinhDang.Tien(_kq.SoTien.Value)</span>
+                        }
+                        else
+                        {
+                            <span>Lưu</span>
+                        }
                     </button>
                 }
                 else
@@ -313,10 +323,13 @@
 
             // LoaiHL/DmHL đã tính từ _kq (kể cả khi vừa thay bằng kết quả AI) và lựa chọn tay của người dùng
             var g = new GiaoDich
-            {
-                Loai = LoaiHL, SoTien = kq.SoTien!.Value, DanhMucId = DmHL,
-                GhiChu = kq.GhiChu, Ngay = _ngayGhiDe ?? kq.Ngay
-            };
+                {
+                    Loai = LoaiHL,
+                    SoTien = kq.SoTien!.Value,
+                    DanhMucId = DmHL,
+                    GhiChu = kq.GhiChu,
+                    Ngay = _ngayGhiDe ?? kq.Ngay
+                };
             await GD.ThemAsync(g);
 
             // Học danh mục: người dùng chủ động chọn khác với gợi ý -> lần sau tự dùng
@@ -368,10 +381,15 @@
         {
             var cu = Sheet.DangSua;
             var g = new GiaoDich
-            {
-                Id = cu?.Id ?? Guid.NewGuid(), TaoLuc = cu?.TaoLuc ?? DateTime.UtcNow,
-                Loai = _mLoai, SoTien = _mSoTien, DanhMucId = _mDm, GhiChu = _mGhiChu.Trim(), Ngay = _mNgay
-            };
+                {
+                    Id = cu?.Id ?? Guid.NewGuid(),
+                    TaoLuc = cu?.TaoLuc ?? DateTime.UtcNow,
+                    Loai = _mLoai,
+                    SoTien = _mSoTien,
+                    DanhMucId = _mDm,
+                    GhiChu = _mGhiChu.Trim(),
+                    Ngay = _mNgay
+                };
             if (cu != null)
             {
                 await GD.SuaAsync(g);
@@ -402,6 +420,7 @@
         {
             var daXoa = await GD.XoaAsync(cu.Id);
             if (daXoa != null) Bao.DaXoa(daXoa);
+            await Am.PhatAsync("xoa");
             await DongAsync();
         }
         catch (DuLieuException e) { _loi = e.Message; }
@@ -413,6 +432,7 @@
     {
         var cb = g.Loai == LoaiGiaoDich.Chi ? GD.CanhBaoSauKhiLuu(g) : new List<CanhBaoNganSach>();
         await Rung.RungAsync(cb.Any(c => c.Muc == MucCanhBao.Do) ? 40 : 12);
+        await Am.PhatAsync(cb.Any(c => c.Muc == MucCanhBao.Do) ? "canhBao" : "luu");
         if (cb.Count > 0)
         {
             _ketQua = g; _canhBao = cb;   // giữ sheet mở để hiện cảnh báo ngay sau khi lưu

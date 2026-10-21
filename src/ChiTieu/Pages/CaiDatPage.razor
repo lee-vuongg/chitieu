@@ -4,6 +4,7 @@
 @inject BackupService Backup
 @inject DbService Db
 @inject IJSRuntime Js
+@inject AmThanh Am
 
 <PageTitle>Cài đặt · Chi tiêu</PageTitle>
 
@@ -35,7 +36,11 @@
         </p>
         <label class="hang-nap" style="align-items:center">
             <span>Bật nhắc hằng ngày</span>
-            <input type="checkbox" checked="@_nhac" @onchange="DoiNhac" />
+            <input type="checkbox" @key="_nhacVer" checked="@_nhac" @onchange="DoiNhac" />
+        </label>
+        <label class="hang-nap" style="align-items:center">
+            <span>Âm thanh khi lưu và xóa</span>
+            <input type="checkbox" checked="@(!_tatAm)" @onchange="DoiAm" />
         </label>
         @if (!string.IsNullOrEmpty(_loiNhac))
         {
@@ -252,8 +257,10 @@
     private string? _loiBackup, _loiAi, _loiDm, _dungLuong;
     private BackupData? _file;
     private bool _nhac;
+    private int _nhacVer;
     private string? _loiNhac;
     private string _aiMa = "";
+    private bool _tatAm;
 
     private DanhMuc? _suaDm;
     private string _tuKhoaText = "";
@@ -277,6 +284,9 @@
         try { _nhac = await Js.InvokeAsync<bool>("chiTieuPush.dang"); StateHasChanged(); }
         catch { }
 
+        try { _tatAm = await Am.DangTatAsync(); StateHasChanged(); }
+        catch { }
+
         try
         {
             var json = await Js.InvokeAsync<string>("chitieuDb.uocLuong");
@@ -293,6 +303,8 @@
 
     // ---------- Giao diện ----------
     private Task DoiChuDe(ChuDe c) => AnToanAsync(() => CaiDat.DatChuDeAsync(c));
+
+    // ---------- Nhắc ghi chi tiêu ----------
     private async Task DoiNhac(ChangeEventArgs e)
     {
         _loiNhac = null;
@@ -316,7 +328,16 @@
             _nhac = false;
             _loiNhac = "Không bật được nhắc. Hãy thử lại.";
         }
+        finally { _nhacVer++; }
     }
+
+    // ---------- Âm thanh ----------
+    private async Task DoiAm(ChangeEventArgs e)
+    {
+        _tatAm = !(e.Value is bool b && b);
+        try { await Am.DatTatAsync(_tatAm); } catch { }
+    }
+
     // ---------- Sao lưu ----------
     private async Task XuatBackup()
     {
