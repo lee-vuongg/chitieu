@@ -75,6 +75,10 @@
                         {
                             <p class="tro-giup">🤔 Chưa chắc về danh mục hoặc số tiền. Hãy kiểm tra và chạm để chọn danh mục bên dưới.</p>
                         }
+                        @if (!_kq.LoaiRo && !_nguoiChon)
+                        {
+                            <p class="tro-giup">🤔 Chưa rõ là thu hay chi, đang để là Chi. Chạm để đổi.</p>
+                        }
                         @if (!string.IsNullOrEmpty(_loiAi))
                         {
                             <p class="tro-giup">ℹ️ @_loiAi</p>
@@ -112,6 +116,17 @@
                         <button type="button" class="@(_mLoai == LoaiGiaoDich.Thu ? "chon thu" : "")" @onclick="@(() => DoiLoaiTay(LoaiGiaoDich.Thu))">Thu</button>
                     </div>
 
+                    @if (!DangSua)
+                    {
+                        <div class="truong">
+                            <span class="nhan-truong">Nói để tự điền</span>
+                            <div style="display:flex; gap:10px; align-items:center;">
+                                <span class="tro-giup" style="flex:1;">Ví dụ: “nhận lương 10 triệu” hoặc “ăn phở 50 nghìn”</span>
+                                <MicButton OnText="@(t => NoiVaoTay(t))" />
+                            </div>
+                        </div>
+                    }
+
                     <div class="truong">
                         <label for="o-tien">Số tiền (đồng)</label>
                         <input id="o-tien" class="o-nhap o-so" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off"
@@ -142,7 +157,14 @@
 
                     <div class="truong">
                         <label for="o-ghichu">Ghi chú</label>
-                        <input id="o-ghichu" class="o-nhap" type="text" autocomplete="off" placeholder="Ví dụ: Ăn phở với bạn" @bind="_mGhiChu" @bind:event="oninput" />
+                        <div style="display:flex; gap:10px; align-items:center;">
+                            <input id="o-ghichu" class="o-nhap" type="text" autocomplete="off" placeholder="Ví dụ: Ăn phở với bạn"
+                                   style="flex:1; min-width:0;" @bind="_mGhiChu" @bind:event="oninput" />
+                            @if (DangSua)
+                            {
+                                <MicButton OnText="@(t => _mGhiChu = t)" />
+                            }
+                        </div>
                     </div>
 
                     <div class="truong">
@@ -370,6 +392,34 @@
     }
 
     private void DoiNgayTay(ChangeEventArgs e) { if (DateOnly.TryParse(e.Value?.ToString(), out var d)) _mNgay = d; }
+
+    // Nói câu tự nhiên trong tab Nhập tay: tự điền số tiền, loại (thu/chi), danh mục, ngày và ghi chú
+    private void NoiVaoTay(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return;
+        var kq = GD.Phan(text);
+
+        _loi = null;
+        _mGhiChu = string.IsNullOrWhiteSpace(kq.GhiChu) ? text.Trim() : kq.GhiChu;
+
+        if (kq.SoTien is > 0)
+        {
+            _mSoTien = kq.SoTien.Value;
+            _mSoTienText = _mSoTien.ToString();
+        }
+
+        _mLoai = kq.Loai;
+        if (kq.TimThayDanhMuc)
+        {
+            _mDm = kq.DanhMucId;
+        }
+        else
+        {
+            _mDm = kq.Loai == LoaiGiaoDich.Thu ? DanhMucMacDinh.KhacThu : DanhMucMacDinh.KhacChi;
+        }
+
+        if (kq.TimThayNgay) _mNgay = kq.Ngay;
+    }
 
     private async Task LuuTayAsync()
     {

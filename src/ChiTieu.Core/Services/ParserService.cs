@@ -17,6 +17,8 @@ public class KetQuaParse
     public double DoTinCay { get; init; }
     public bool TimThayDanhMuc { get; init; }
     public bool TimThayNgay { get; init; }
+    /// <summary>true nếu đã nhận ra thu/chi qua danh mục hoặc từ báo thu. false = đang đoán mặc định là Chi.</summary>
+    public bool LoaiRo { get; init; }
 }
 
 /// <summary>
@@ -56,8 +58,12 @@ public class ParserService
     private static readonly Regex RxTuanTruoc = new(@"\btuan\s+(?:truoc|roi|qua)\b", RegexOptions.Compiled);
     private static readonly Regex RxNgayD = new(@"\bngay\s+(\d{1,2})\b(?!\s*/)", RegexOptions.Compiled);
 
+    // Từ báo khoản THU. Không dùng "lai" đứng riêng (dễ nhầm với "lại") và không dùng "cho" đứng riêng.
     private static readonly Regex RxGoiYThu = new(
-        @"^thu\b|\b(?:nhan|duoc\s+cho|duoc\s+tang|hoan\s+tien)\b", RegexOptions.Compiled);
+        @"^(thu|nhan|hoan|luong|thuong|bonus)\b" +
+        @"|\b(nhan\s+(duoc|tien|luong|thuong|lai)|duoc\s+(tang|mung|tra|chuyen|thuong|luong|cho\s+tien)" +
+        @"|hoan\s+tien|tien\s+ve|tien\s+lai|lai\s+suat|tra\s+luong|luong|thuong|bonus|co\s+tuc|hoa\s+hong|nhuan\s+but)\b",
+        RegexOptions.Compiled);
 
     /// <summary>Vùng làm việc: chuỗi không dấu + mặt nạ các đoạn đã bị cắt.</summary>
     private sealed class Vung
@@ -87,6 +93,8 @@ public class ParserService
         var ghiChu = DungGhiChu(goc, vung.DaXoa);
 
         var (dm, diemDm) = DoanDanhMuc(ghiChuAscii, danhMuc, daHoc);
+        var coGoiYThu = RxGoiYThu.IsMatch(ghiChuAscii);
+
         LoaiGiaoDich loai;
         string dmId;
         double diemCuoiDm;
@@ -95,7 +103,7 @@ public class ParserService
         {
             loai = dm.Loai; dmId = dm.Id; diemCuoiDm = diemDm;
         }
-        else if (RxGoiYThu.IsMatch(ghiChuAscii))
+        else if (coGoiYThu)
         {
             loai = LoaiGiaoDich.Thu; dmId = DanhMucMacDinh.KhacThu; diemCuoiDm = 0.3;
         }
@@ -121,7 +129,8 @@ public class ParserService
             DanhMucId = dmId,
             DoTinCay = Math.Round(tinCay, 3),
             TimThayDanhMuc = timThayDm,
-            TimThayNgay = coNgay
+            TimThayNgay = coNgay,
+            LoaiRo = timThayDm || coGoiYThu
         };
     }
 
